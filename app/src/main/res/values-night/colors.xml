@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_bg">@color/ebb_ink</color>
+    <color name="splash_mark">@color/ebb_sea_glass</color>
+    <color name="window_bg">#FF071417</color>
+</resources>

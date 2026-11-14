@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ebb_tide">#FF0E5E66</color>
+    <color name="ebb_sea_glass">#FFBFE3DA</color>
+    <color name="ebb_ink">#FF0B1F24</color>
+    <!-- Splash + window backgrounds; values-night overrides. window_bg matches the TIDE surface so there is no flash. -->
+    <color name="splash_bg">@color/ebb_sea_glass</color>
+    <color name="splash_mark">@color/ebb_tide</color>
+    <color name="window_bg">#FFF7F9F9</color>
+</resources>

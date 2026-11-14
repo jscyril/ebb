@@ -43,3 +43,18 @@ class AttemptDedupe(private val windowMs: Long) {
         return true
     }
 }
+
+enum class OverlayMode { FULL, WINDOW }
+
+/**
+ * Full-screen when the watched app is the active window; window-limited when it is visible only beside a
+ * non-watched active app. While our own overlay holds focus (active = own/unknown) the current mode is kept,
+ * otherwise FULL -> WINDOW -> FULL would flip-flop on every relayout. Null: no watched app visible.
+ */
+fun overlayMode(activePkg: String?, ownPkg: String, watchedVisible: String?, watched: Set<String>, current: OverlayMode?): OverlayMode? =
+    when {
+        activePkg != null && activePkg in watched -> OverlayMode.FULL
+        watchedVisible == null -> null
+        current != null && (activePkg == null || activePkg == ownPkg) -> current
+        else -> OverlayMode.WINDOW
+    }

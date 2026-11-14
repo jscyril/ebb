@@ -10,6 +10,7 @@ import android.graphics.Rect
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
+import android.os.SystemClock
 import android.text.format.DateFormat
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -58,6 +59,8 @@ class BlockerService : AccessibilityService() {
     private var imes: Set<String> = emptySet()
     private var sticky = false // full-screen Block/TimesUp survives the Home it triggers
     private var rescan: Job? = null
+    private var rescanDue = 0L // uptime by which a pending debounced recheck must run
+    private var mode: OverlayMode? = null // null = no overlay
     private val attempts = AttemptDedupe(3_000)
     private val focus by lazy { AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).build() }
     private var holdingFocus = false
@@ -115,17 +118,21 @@ class BlockerService : AccessibilityService() {
         for (d in longArrayOf(0, 500, 1_500)) scope.launch { delay(d); recheck() }
     }
 
-    /** Debounced: a newer request replaces a pending one. */
+    /** Trailing debounce: a newer request replaces a pending one, but a pending one runs within 1 s at most. */
     private fun scheduleRecheck(ms: Long) {
+        val now = SystemClock.uptimeMillis()
+        if (rescan?.isActive != true) rescanDue = now + 1_000
         rescan?.cancel()
-        rescan = scope.launch { delay(ms); recheck() }
+        rescan = scope.launch { delay(minOf(ms, rescanDue - now).coerceAtLeast(0)); recheck() }
     }
 
     private fun recheck() {
         if (getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return // USER_PRESENT follows
         val root = rootInActiveWindow
-        val pkg = root?.packageName?.toString()?.takeUnless(::ignored)
+        val raw = root?.packageName?.toString()
         @Suppress("DEPRECATION") root?.recycle()
+        if (raw == packageName && overlay?.isShowing == true) return // our overlay has focus: leave it be (no flip-flop)
+        val pkg = raw?.takeUnless(::ignored)
         serial { onForeground(pkg) } // null pkg still scans the visible windows
     }
 
@@ -155,7 +162,8 @@ class BlockerService : AccessibilityService() {
             record(tracker.onForeground(pkg, false, now))
             return
         }
-        val bounds = if (direct) null else wins.first { it.first == target }.second
+        val m = overlayMode(pkg, packageName, target, rules.keys, mode)
+        val bounds = if (m == OverlayMode.WINDOW) wins.first { it.first == target }.second else null
         gate(target, rules.getValue(target), now, isNew, bounds)
     }
 
@@ -171,7 +179,7 @@ class BlockerService : AccessibilityService() {
             is Decision.Prompt -> {
                 cancelTimer()
                 val label = label(pkg)
-                show(bounds, blocking = false) { PromptOverlay(label, d.options) { t -> serial { pick(pkg, t) } } }
+                show(bounds, sticky = false) { PromptOverlay(label, d.options) { t -> serial { pick(pkg, t) } } }
             }
             is Decision.Blocked -> {
                 cancelTimer()
@@ -181,7 +189,7 @@ class BlockerService : AccessibilityService() {
                 }
                 val label = label(pkg)
                 val until = if (d.reason == Reason.COOLDOWN) timeText(d.until) else null
-                show(bounds, blocking = true) { BlockOverlay(label, until, ::goHome) }
+                show(bounds, sticky = true) { BlockOverlay(label, until, ::goHome) }
             }
         }
     }
@@ -212,7 +220,7 @@ class BlockerService : AccessibilityService() {
             schedule(rule, pkg, now)
         } else {
             performGlobalAction(GLOBAL_ACTION_HOME)
-            show(null, blocking = true) { TimesUpOverlay(::goHome) }
+            show(null, sticky = true) { TimesUpOverlay(::goHome) }
         }
     }
 
@@ -266,14 +274,15 @@ class BlockerService : AccessibilityService() {
         repo.updateState(iv.pkg) { SessionEngine.addForeground(it, sec, iv.end - 1, zone) }
     }
 
-    /** [blocking] = Block/TimesUp: sticky when full screen, and holds audio focus to pause a playing video. */
-    private fun show(bounds: Rect?, blocking: Boolean, content: @Composable () -> Unit) {
-        sticky = blocking && bounds == null
+    /** [sticky] (Block/TimesUp) survives the Home it triggers when full screen. Any overlay holds audio focus to pause a playing video. */
+    private fun show(bounds: Rect?, sticky: Boolean, content: @Composable () -> Unit) {
+        this.sticky = sticky && bounds == null
+        mode = if (bounds == null) OverlayMode.FULL else OverlayMode.WINDOW
         overlay?.show(bounds, content)
-        audioFocus(blocking)
+        audioFocus(true)
     }
 
-    private fun dismiss() { overlay?.dismiss(); sticky = false; audioFocus(false) }
+    private fun dismiss() { overlay?.dismiss(); sticky = false; mode = null; audioFocus(false) }
 
     private fun audioFocus(hold: Boolean) {
         if (hold == holdingFocus) return

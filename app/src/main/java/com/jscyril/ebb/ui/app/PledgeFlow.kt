@@ -148,6 +148,7 @@ fun PledgeFlow(allowNone: Boolean, onDone: (pledged: Boolean) -> Unit, modifier:
                         // or an early end by passcode could skip the 48 h wait.
                         val repo = Repo.get(ctx)
                         repo.savePledge(record); repo.savePending(null); repo.saveDisableRequestedAt(null)
+                        clearCopied(ctx, grouped)
                         made = null; onDone(true)
                     }
                 },
@@ -173,4 +174,13 @@ private fun copySensitive(ctx: android.content.Context, text: String) {
     val clip = ClipData.newPlainText(ctx.getString(R.string.pledge_clip_label), text)
     if (Build.VERSION.SDK_INT >= 33) clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
     ctx.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
+}
+
+/** Clears the clipboard if it still holds the passcode we copied, so it doesn't outlive the handover. */
+private fun clearCopied(ctx: android.content.Context, text: String) {
+    val cm = ctx.getSystemService(ClipboardManager::class.java) ?: return
+    runCatching { // reading the clip can be refused (e.g. not focused): then leave it
+        val clip = cm.primaryClip?.takeIf { it.itemCount > 0 } ?: return
+        if (clip.getItemAt(0).text?.toString() == text) cm.clearPrimaryClip()
+    }
 }

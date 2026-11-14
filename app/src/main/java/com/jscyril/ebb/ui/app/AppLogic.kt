@@ -49,3 +49,9 @@ const val PASSCODE_RETRY_MS = 30_000L
 
 /** One passcode try per 30 s after a failure, to slow guessing. [now] should be monotonic (elapsed realtime). */
 fun passcodeAttemptAllowed(lastFailAt: Long?, now: Long): Boolean = lastFailAt == null || now >= lastFailAt + PASSCODE_RETRY_MS
+
+/** Next stepper value: up to the next multiple of [step], clamped to [max]. */
+fun stepUp(v: Int, step: Int, max: Int): Int = minOf(max, (v / step + 1) * step)
+
+/** Previous stepper value: down to the previous multiple of [step], clamped to [min]. */
+fun stepDown(v: Int, step: Int, min: Int): Int = maxOf(min, if (v % step == 0) v - step else v / step * step)

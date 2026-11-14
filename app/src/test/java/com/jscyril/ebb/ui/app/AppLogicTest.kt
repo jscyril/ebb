@@ -79,4 +79,15 @@ class AppLogicTest {
         assertTrue(passcodeAttemptAllowed(1_000, 31_000))
         assertFalse(passcodeAttemptAllowed(50_000, 10_000)) // time going backwards never opens the gate
     }
+
+    @Test fun stepperSnapsToStepAndClamps() {
+        assertEquals(5, stepUp(1, 5, 240))
+        assertEquals(10, stepUp(5, 5, 240))
+        assertEquals(10, stepUp(7, 5, 240))
+        assertEquals(240, stepUp(240, 5, 240))
+        assertEquals(5, stepDown(7, 5, 1))
+        assertEquals(5, stepDown(10, 5, 1))
+        assertEquals(1, stepDown(5, 5, 1))
+        assertEquals(1, stepDown(1, 5, 1))
+    }
 }

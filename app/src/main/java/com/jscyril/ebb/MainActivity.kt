@@ -5,35 +5,43 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.jscyril.ebb.ui.theme.EbbThemeFromRepo
+import androidx.lifecycle.lifecycleScope
+import com.jscyril.ebb.data.Repo
+import com.jscyril.ebb.data.ThemePrefs
+import com.jscyril.ebb.ui.app.EbbRoot
+import com.jscyril.ebb.ui.app.maturePending
+import com.jscyril.ebb.ui.theme.EbbTheme
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    /** Theme prefs + onboarding flag; null until DataStore has answered, while the splash stays up. */
+    private val boot = mutableStateOf<Pair<ThemePrefs, Boolean>?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen().setOnExitAnimationListener { splash ->
-            // Hand-off: the mark swells slightly while the splash fades, then the splash view is removed.
-            splash.iconView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(300).setInterpolator(OvershootInterpolator()).start()
-            splash.view.animate().alpha(0f).setDuration(300).setInterpolator(AccelerateInterpolator())
-                .withEndAction { splash.remove() }.start()
+        val splash = installSplashScreen()
+        splash.setKeepOnScreenCondition { boot.value == null } // no default-theme first frame
+        splash.setOnExitAnimationListener { s ->
+            // Hand-off: the mark swells slightly while the splash fades. iconView can be missing on some OEM splashes.
+            runCatching { s.iconView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(300).setInterpolator(OvershootInterpolator()).start() }
+            s.view.animate().alpha(0f).setDuration(300).setInterpolator(AccelerateInterpolator())
+                .withEndAction { s.remove() }.start()
         }
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        // Placeholder until Task 9 builds the real screens.
+        val repo = Repo.get(this)
+        lifecycleScope.launch { combine(repo.themeFlow, repo.onboardingDoneFlow, ::Pair).collect { boot.value = it } }
         setContent {
-            EbbThemeFromRepo {
-                Surface(Modifier.fillMaxSize()) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.displayLarge)
-                    }
-                }
-            }
+            val b = boot.value ?: return@setContent
+            EbbTheme(b.first) { EbbRoot(b.second) }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { runCatching { maturePending(this@MainActivity) } }
     }
 }

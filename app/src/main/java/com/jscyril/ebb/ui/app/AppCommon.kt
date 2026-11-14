@@ -38,6 +38,7 @@ import com.jscyril.ebb.guard.Pledge
 import com.jscyril.ebb.guard.Rules
 import com.jscyril.ebb.service.TrustedNow
 import com.jscyril.ebb.ui.overlay.AppIcon
+import com.jscyril.ebb.widget.WidgetRefresher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -56,11 +57,14 @@ suspend fun maturePending(ctx: Context) {
     val p = repo.pending() ?: return
     val now = TrustedNow.peek(ctx)
     when (matureAction(Pledge.isActive(repo.pledge(), now), now >= p.effectiveAt)) {
-        MatureAction.Apply -> { repo.saveRules(p.newRules); repo.savePending(null) }
+        MatureAction.Apply -> { repo.saveRules(p.newRules); repo.savePending(null); rulesChanged(ctx) }
         MatureAction.Drop -> repo.savePending(null)
         MatureAction.Keep -> {}
     }
 }
+
+/** Widgets list the watched apps and their caps: redraw them and re-arm their alarm after a rules write. */
+fun rulesChanged(ctx: Context) { WidgetRefresher.requestUpdate(ctx); WidgetRefresher.scheduleNext(ctx) }
 
 sealed interface SubmitResult {
     data object Saved : SubmitResult
@@ -79,7 +83,7 @@ suspend fun submitRules(ctx: Context, proposed: Rules): SubmitResult {
     val pledge = repo.pledge()
     val (rules, pending) = ChangeQueue.submit(repo.rules(), proposed, now)
     if (!allowSubmit(pending != null, Pledge.isActive(pledge, now))) return SubmitResult.RefusedPledge(pledge!!.endsAt)
-    if (pending == null) repo.saveRules(rules)
+    if (pending == null) { repo.saveRules(rules); rulesChanged(ctx) }
     repo.savePending(pending)
     return if (pending == null) SubmitResult.Saved else SubmitResult.Queued(pending.effectiveAt)
 }

@@ -7,4 +7,8 @@
     <color name="splash_bg">@color/ebb_sea_glass</color>
     <color name="splash_mark">@color/ebb_tide</color>
     <color name="window_bg">#FFF7F9F9</color>
+    <!-- Widget picker previews (static XML) -->
+    <color name="widget_preview_bg">@color/window_bg</color>
+    <color name="widget_preview_fg">@color/ebb_tide</color>
+    <color name="widget_preview_text">@color/ebb_ink</color>
 </resources>

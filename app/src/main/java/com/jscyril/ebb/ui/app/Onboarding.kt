@@ -87,13 +87,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** Ruling: before onboarding is done nothing is guarded, so rules are saved directly (no cooldown), and survive process death. */
-class OnboardingVm(app: Application) : AndroidViewModel(app) {
+class OnboardingVm(private val app: Application) : AndroidViewModel(app) {
     private val repo = Repo.get(app)
     val rules = repo.rulesFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val pledge = repo.pledgeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Atomic in DataStore, so quick toggles never overwrite each other. */
-    private fun edit(f: (Rules) -> Rules) = viewModelScope.launch { repo.updateRules(f) }
+    private fun edit(f: (Rules) -> Rules) = viewModelScope.launch { repo.updateRules(f); rulesChanged(app) }
 
     /** One tier list + cap for every app picked during onboarding; per-app tweaks happen on the Rules tab. */
     fun template(r: Rules?) = r?.apps?.values?.firstOrNull() ?: AppRule()
@@ -111,6 +111,7 @@ class OnboardingVm(app: Application) : AndroidViewModel(app) {
         repo.updateRules { r -> r.copy(apps = r.apps.mapValues { it.value.copy(tiers = it.value.tiers.sortedBy { t -> t.sessionMin }) }) }
         repo.savePending(null)
         repo.setOnboardingDone()
+        rulesChanged(app)
     }
 }
 

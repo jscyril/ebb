@@ -89,7 +89,7 @@ private val EbbShapes = Shapes(
     extraLarge = RoundedCornerShape(36.dp),
 )
 
-private fun ColorScheme.amoled(): ColorScheme {
+internal fun ColorScheme.amoled(): ColorScheme {
     val a = Palette.AMOLED.map { Color(it) }
     return copy(
         background = a[0], surface = a[0], surfaceDim = a[0], surfaceContainerLowest = a[1],
@@ -97,7 +97,7 @@ private fun ColorScheme.amoled(): ColorScheme {
     )
 }
 
-private fun Palette.Scheme.toColorScheme(dark: Boolean): ColorScheme {
+internal fun Palette.Scheme.toColorScheme(dark: Boolean): ColorScheme {
     val c = { v: Int -> Color(v) }
     val base = if (dark) darkColorScheme() else lightColorScheme()
     return base.copy(

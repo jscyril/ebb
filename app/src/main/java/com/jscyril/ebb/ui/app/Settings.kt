@@ -92,6 +92,7 @@ import com.jscyril.ebb.guard.DisableRequest
 import com.jscyril.ebb.guard.Pledge
 import com.jscyril.ebb.service.ServiceState
 import com.jscyril.ebb.service.TrustedNow
+import com.jscyril.ebb.widget.WidgetRefresher
 import com.jscyril.ebb.ui.theme.BigButton
 import com.jscyril.ebb.ui.theme.Palette
 import kotlinx.coroutines.Dispatchers
@@ -120,7 +121,7 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
     private val _checking = MutableStateFlow(false)
     val checking = _checking.asStateFlow()
 
-    fun setTheme(t: ThemePrefs) = viewModelScope.launch { repo.saveTheme(t) }
+    fun setTheme(t: ThemePrefs) = viewModelScope.launch { repo.saveTheme(t); WidgetRefresher.requestUpdate(app) }
 
     fun submitPasses(n: Int, onMessage: (String) -> Unit) = viewModelScope.launch {
         val r = repo.rules()

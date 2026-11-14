@@ -41,6 +41,7 @@ import com.jscyril.ebb.ui.overlay.EmergencyActivity
 import com.jscyril.ebb.ui.overlay.PromptScreen
 import com.jscyril.ebb.ui.overlay.TimesUpScreen
 import com.jscyril.ebb.ui.theme.EbbThemeFromRepo
+import com.jscyril.ebb.widget.WidgetRefresher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -91,6 +92,8 @@ class BlockerService : AccessibilityService() {
     private var launcherSeen: CompletableDeferred<Unit>? = null // completed by the launcher event after its Home
     private var launchingPkg: String? = null // FULL overlays for it are held back until the Activity is up
     private var launchingUntil = 0L // uptime
+    private var widgetsDirty = false // a widget-visible write happened in this serial block
+    private var widgetFgAt = Long.MIN_VALUE / 2 // uptime of the last usage-driven widget refresh
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -115,6 +118,7 @@ class BlockerService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, f, RECEIVER_NOT_EXPORTED)
         else registerReceiver(receiver, f)
         serial {} // init early
+        WidgetRefresher.scheduleNext(this) // after boot: re-arm the widget alarm (no BOOT_COMPLETED receiver)
         recheck() // gate an app that is already open when the service (re)starts
     }
 
@@ -236,6 +240,11 @@ class BlockerService : AccessibilityService() {
                     if (!ready) { clock.init(); zone = repo.zone(); ready = true } // retried on the next event if it throws
                     block()
                 } catch (e: CancellationException) { throw e } catch (e: Exception) { Log.e(TAG, "event failed", e) }
+                if (widgetsDirty) {
+                    widgetsDirty = false
+                    WidgetRefresher.requestUpdate(this@BlockerService)
+                    WidgetRefresher.scheduleNext(this@BlockerService)
+                }
             }
         }
     }
@@ -264,6 +273,7 @@ class BlockerService : AccessibilityService() {
         var s = repo.state(pkg)
         if (s.sessionEndsAt?.let { now >= it } == true && s.emergencyUntil?.let { now < it } != true) {
             s = repo.updateState(pkg) { SessionEngine.endSession(it, now) } // timer missed while away: settle it
+            widgetsDirty = true
         }
         val d = SessionEngine.decide(rule, s, now, zone)
         record(tracker.onForeground(pkg, d is Decision.Allow, now))
@@ -284,6 +294,7 @@ class BlockerService : AccessibilityService() {
                 cancelTimer()
                 if (isNew && attempts.shouldCount(pkg, now)) {
                     repo.logSession(pkg, now, now, 0, Kind.BLOCKED_ATTEMPT)
+                    widgetsDirty = true
                     performGlobalAction(GLOBAL_ACTION_HOME) // background it so audio/video usually stop
                 }
                 showBlock(pkg, rule, d, now, bounds)
@@ -361,6 +372,7 @@ class BlockerService : AccessibilityService() {
             repo.addEmergencyUse(now)
             repo.logSession(pkg, now, now + SessionEngine.EMERGENCY_MIN * 60_000L, SessionEngine.EMERGENCY_MIN, Kind.EMERGENCY)
             repo.updateState(pkg) { SessionEngine.startEmergency(it, now) }
+            widgetsDirty = true
         }
         // Either way open the app: its window event gates it (Allow now, or Prompt/Block if no pass was spent).
         runCatching { packageManager.getLaunchIntentForPackage(pkg)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let(::startActivity) }
@@ -374,6 +386,7 @@ class BlockerService : AccessibilityService() {
         if (d !is Decision.Prompt || tier !in d.options) return // double tap or state moved on
         repo.updateState(pkg) { SessionEngine.startSession(it, tier, now) }
         repo.logSession(pkg, now, now + tier.sessionMin * 60_000L, tier.sessionMin, Kind.SESSION)
+        widgetsDirty = true
         gate(pkg, rule, now, isNew = false, bounds = null) // now Allow: dismisses, starts the interval, schedules
     }
 
@@ -387,6 +400,7 @@ class BlockerService : AccessibilityService() {
             val at = SessionEngine.nextAlarmAt(rule, s, now, zone)
             if (at == null || at <= now) SessionEngine.endSession(s, now) else s
         }
+        widgetsDirty = true
         val d = SessionEngine.decide(rule, s, now, zone)
         if (d is Decision.Allow) {
             tracker.onForeground(pkg, true, now) // midnight or emergency still active: keep going
@@ -416,8 +430,8 @@ class BlockerService : AccessibilityService() {
         val pending = repo.pending()
         var active = rules
         if (pending != null) when (matureAction(Pledge.isActive(repo.pledge(), now), now >= pending.effectiveAt)) {
-            MatureAction.Apply -> { active = pending.newRules; repo.saveRules(active); repo.savePending(null) }
-            MatureAction.Drop -> repo.savePending(null) // no loosening lands during a pledge
+            MatureAction.Apply -> { active = pending.newRules; repo.saveRules(active); repo.savePending(null); widgetsDirty = true }
+            MatureAction.Drop -> { repo.savePending(null); widgetsDirty = true } // no loosening lands during a pledge
             MatureAction.Keep -> {}
         }
         return if (guarding()) active.apps else emptyMap()
@@ -455,6 +469,9 @@ class BlockerService : AccessibilityService() {
         val sec = ((iv.end - iv.start + 500) / 1000).toInt()
         // end - 1: a flush at the midnight timer belongs to the day that just ended
         repo.updateState(iv.pkg) { SessionEngine.addForeground(it, sec, iv.end - 1, zone) }
+        // Widgets show minutes, not seconds: refresh for usage at most once a minute.
+        val up = SystemClock.uptimeMillis()
+        if (up - widgetFgAt >= 60_000) { widgetFgAt = up; widgetsDirty = true }
     }
 
     /** [sticky] (Block/TimesUp) survives the Home it triggers when full screen. Any overlay holds audio focus to pause a playing video. */

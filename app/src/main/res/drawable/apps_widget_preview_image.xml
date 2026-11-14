@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- previewImage fallback (before API 31): card with three app rows. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp" android:height="79dp" android:viewportWidth="250" android:viewportHeight="110">
+    <path android:pathData="M24,0 H226 A24,24 0 0,1 250,24 V86 A24,24 0 0,1 226,110 H24 A24,24 0 0,1 0,86 V24 A24,24 0 0,1 24,0 Z" android:fillColor="@color/widget_preview_bg" />
+    <path android:pathData="M30,28 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" android:fillColor="@color/widget_preview_fg" />
+    <path android:pathData="M30,56 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" android:fillColor="@color/widget_preview_fg" android:fillAlpha="0.6" />
+    <path android:pathData="M30,84 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" android:fillColor="@color/widget_preview_fg" android:fillAlpha="0.35" />
+    <path android:pathData="M54,20 h90 v6 h-90 z M54,48 h70 v6 h-70 z M54,76 h80 v6 h-80 z" android:fillColor="@color/widget_preview_text" />
+    <path android:pathData="M54,31 h120 v4 h-120 z M54,59 h100 v4 h-100 z M54,87 h110 v4 h-110 z" android:fillColor="@color/widget_preview_text" android:fillAlpha="0.5" />
+</vector>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static picker preview (API 31+) of AppsWidget at 4x2. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_card" android:orientation="vertical" android:padding="12dp">
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical" android:orientation="horizontal" android:paddingVertical="4dp">
+        <ImageView
+            android:layout_width="32dp" android:layout_height="32dp" android:alpha="1"
+            android:importantForAccessibility="no" android:src="@drawable/widget_preview_dot" />
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="12dp" android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1"
+                android:text="@string/widget_preview_app1" android:textColor="@color/widget_preview_text"
+                android:textSize="14sp" android:fontFamily="sans-serif-medium" />
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1"
+                android:text="@string/widget_preview_status1" android:textColor="@color/widget_preview_fg" android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical" android:orientation="horizontal" android:paddingVertical="4dp">
+        <ImageView
+            android:layout_width="32dp" android:layout_height="32dp" android:alpha="0.6"
+            android:importantForAccessibility="no" android:src="@drawable/widget_preview_dot" />
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="12dp" android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1"
+                android:text="@string/widget_preview_app2" android:textColor="@color/widget_preview_text"
+                android:textSize="14sp" android:fontFamily="sans-serif-medium" />
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1"
+                android:text="@string/widget_preview_status2" android:textColor="@color/widget_preview_text" android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

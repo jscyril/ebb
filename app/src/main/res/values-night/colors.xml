@@ -3,4 +3,7 @@
     <color name="splash_bg">@color/ebb_ink</color>
     <color name="splash_mark">@color/ebb_sea_glass</color>
     <color name="window_bg">#FF071417</color>
+    <color name="widget_preview_bg">#FF0E2328</color>
+    <color name="widget_preview_fg">@color/ebb_sea_glass</color>
+    <color name="widget_preview_text">#FFE6F0EE</color>
 </resources>

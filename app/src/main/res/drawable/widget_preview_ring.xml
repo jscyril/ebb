@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 70 % progress ring for the picker preview. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="88dp" android:height="88dp" android:viewportWidth="88" android:viewportHeight="88">
+    <path android:pathData="M44,5 A39,39 0 1,1 44,83 A39,39 0 1,1 44,5" android:strokeColor="@color/widget_preview_fg" android:strokeAlpha="0.24" android:strokeWidth="9" />
+    <path android:pathData="M44,5 A39,39 0 1,1 6.9,56.1" android:strokeColor="@color/widget_preview_fg" android:strokeWidth="9" android:strokeLineCap="round" />
+</vector>

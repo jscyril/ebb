@@ -294,4 +294,35 @@
     <string name="rules_pledge_intro">Your pledge is active until %1$s. Limits can only get stricter until then.</string>
     <string name="pledge_cancels_request">Starting a pledge cancels your request to turn Ebb off.</string>
     <string name="onb_done_missing">Uninstall protection or Ebb\'s service was switched off. Go back and turn it on to start.</string>
+    <!-- Widgets -->
+    <string name="widget_today_name">Today</string>
+    <string name="widget_today_desc">Your time in watched apps today, against your daily limits</string>
+    <string name="widget_apps_name">Watched apps</string>
+    <string name="widget_apps_desc">What each watched app is doing: open, in a session, or locked</string>
+    <string name="dur_short_h">%1$dh</string>
+    <string name="widget_of">of %1$s</string>
+    <string name="widget_today_used">%1$s today</string>
+    <string name="widget_left">%1$s left</string>
+    <string name="widget_ring_desc">%1$s of %2$s today</string>
+    <string name="widget_ring_desc_nocap">%1$s today</string>
+    <string name="widget_top_apps">Most used</string>
+    <string name="widget_no_use">Nothing yet today</string>
+    <string name="widget_empty">Add apps in Ebb</string>
+    <string name="widget_status_open">Open · %1$d of %2$d min</string>
+    <string name="widget_status_session">Session · ends %1$s</string>
+    <string name="widget_status_locked">Locked · until %1$s</string>
+    <string name="widget_status_cap">Daily limit reached</string>
+    <plurals name="widget_status_open_cd">
+        <item quantity="one">%1$s is open, %2$d of %3$d minute used today</item>
+        <item quantity="other">%1$s is open, %2$d of %3$d minutes used today</item>
+    </plurals>
+    <string name="widget_status_session_cd">%1$s session ends at %2$s</string>
+    <string name="widget_status_locked_cd">%1$s is locked until %2$s</string>
+    <string name="widget_status_cap_cd">%1$s reached its daily limit</string>
+    <string name="widget_preview_used">42m</string>
+    <string name="widget_preview_of">of 1h</string>
+    <string name="widget_preview_app1">Video app</string>
+    <string name="widget_preview_app2">Social app</string>
+    <string name="widget_preview_status1">Session · ends 4:30 PM</string>
+    <string name="widget_preview_status2">Open · 12 of 60 min</string>
 </resources>

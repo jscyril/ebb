@@ -78,7 +78,7 @@ private fun MainShell() {
             popEnterTransition = { EbbMotion.enter(reduced) }, popExitTransition = { EbbMotion.exit(reduced) },
         ) {
             composable(Tab.HOME.route) { Home({ nav.go(Tab.RULES.route) }, { nav.go(Tab.SETTINGS.route) }, padding) }
-            composable(Tab.INSIGHTS.route) { DashboardPlaceholder(padding) }
+            composable(Tab.INSIGHTS.route) { Dashboard(padding) }
             composable(Tab.RULES.route) { RulesTab(padding, onMessage) }
             composable(Tab.SETTINGS.route) { SettingsTab(padding, onMessage) }
         }

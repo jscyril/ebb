@@ -3,16 +3,19 @@ package com.jscyril.ebb.data
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 enum class Kind { SESSION, BLOCKED_ATTEMPT, EMERGENCY, FOREGROUND }
 
-@Entity(tableName = "usage_event")
+@Entity(tableName = "usage_event", indices = [Index("kind", "start")])
 data class UsageEvent(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val pkg: String,
@@ -53,11 +56,26 @@ abstract class UsageDao {
     @Query("SELECT start, `end` AS `end` FROM usage_event WHERE kind = 'FOREGROUND' AND `end` > :since")
     abstract fun foreground(since: Long): Flow<List<Interval>>
 
+    @Query("SELECT start FROM usage_event WHERE kind = 'EMERGENCY' AND start >= :from")
+    abstract fun emergencyStarts(from: Long): Flow<List<Long>>
+
+    @Query("SELECT plannedMin FROM usage_event WHERE kind = 'SESSION' AND start >= :from")
+    abstract fun sessionPlans(from: Long): Flow<List<Int>>
+
+    @Query("SELECT MIN(dayKey) FROM day_aggregate")
+    abstract fun firstDayKey(): Flow<Int?>
+
     @Query("DELETE FROM usage_event WHERE `end` < :before")
     abstract suspend fun deleteEventsBefore(before: Long)
 }
 
-@Database(entities = [UsageEvent::class, DayAggregate::class], version = 1, exportSchema = true)
+@Database(entities = [UsageEvent::class, DayAggregate::class], version = 2, exportSchema = true)
 abstract class EbbDb : RoomDatabase() {
     abstract fun usage(): UsageDao
+}
+
+/** v2: index for the dashboard's kind + time-range queries. */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) =
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_usage_event_kind_start` ON `usage_event` (`kind`, `start`)")
 }

@@ -33,7 +33,7 @@ import java.time.ZoneId
 
 class Repo private constructor(ctx: Context) {
     private val ds = ctx.applicationContext.ds
-    private val dao = Room.databaseBuilder(ctx.applicationContext, EbbDb::class.java, "ebb.db").build().usage()
+    private val dao = Room.databaseBuilder(ctx.applicationContext, EbbDb::class.java, "ebb.db").addMigrations(MIGRATION_1_2).build().usage()
 
     companion object {
         @Volatile private var inst: Repo? = null
@@ -168,6 +168,22 @@ class Repo private constructor(ctx: Context) {
             dao.foreground(since).map { ev -> hourlyBuckets(ev.map { maxOf(it.start, since) to it.end }, z) }
         })
     }
+
+    /** Day keys with an emergency pass in the last [days] days. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun emergencyDays(days: Int): Flow<Set<Int>> = flow {
+        val z = zone()
+        emitAll(dayKeyTicker(z).flatMapLatest { todayKey ->
+            val since = dateOfKey(todayKey).minusDays(days - 1L).atStartOfDay(z).toInstant().toEpochMilli()
+            dao.emergencyStarts(since).map { l -> l.mapTo(HashSet()) { dayKeyOf(it, z) } }
+        })
+    }
+
+    /** Planned minutes of the sessions started since [fromMs]. */
+    fun sessionsSince(fromMs: Long): Flow<List<Int>> = dao.sessionPlans(fromMs)
+
+    /** The earliest day with any recorded usage, or null before the first. */
+    fun firstUseDayKey(): Flow<Int?> = dao.firstDayKey()
 
     suspend fun pruneOldEvents(now: Long) = dao.deleteEventsBefore(now - 90 * DAY_MS)
 }

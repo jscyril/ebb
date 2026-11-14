@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No policies: the admin exists only so a plain uninstall is refused while it is active. -->
+<device-admin>
+    <uses-policies />
+</device-admin>

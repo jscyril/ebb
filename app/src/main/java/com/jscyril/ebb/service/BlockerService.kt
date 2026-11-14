@@ -14,9 +14,12 @@ import android.os.SystemClock
 import android.text.format.DateFormat
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import com.jscyril.ebb.R
 import com.jscyril.ebb.data.Kind
 import com.jscyril.ebb.data.Repo
 import com.jscyril.ebb.engine.AppRule
@@ -24,7 +27,10 @@ import com.jscyril.ebb.engine.Decision
 import com.jscyril.ebb.engine.Reason
 import com.jscyril.ebb.engine.SessionEngine
 import com.jscyril.ebb.engine.Tier
+import com.jscyril.ebb.guard.Admin
 import com.jscyril.ebb.guard.ChangeQueue
+import com.jscyril.ebb.guard.GuardMatcher
+import com.jscyril.ebb.guard.Pledge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +70,10 @@ class BlockerService : AccessibilityService() {
     private val attempts = AttemptDedupe(3_000)
     private val focus by lazy { AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).build() }
     private var holdingFocus = false
+    private var guardScan: Job? = null
+    private var guardPkg: String? = null // last guard-package window state, so fragment-nav scans keep its class
+    private var guardCls: String? = null
+    private var lastToast = 0L
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -91,6 +101,12 @@ class BlockerService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            // Clicks fire constantly in every app: bail before any allocation unless it is a guard package.
+            val p = event.packageName ?: return
+            if (GuardMatcher.isGuardPackage(p)) scheduleGuard() // fragment navigation sends no state event
+            return
+        }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             // PiP move/resize, split divider etc. Fires often, so stay idle unless something is gated or a window appeared.
             val added = event.windowChanges and AccessibilityEvent.WINDOWS_CHANGE_ADDED != 0
@@ -99,6 +115,10 @@ class BlockerService : AccessibilityService() {
         }
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
+        if (GuardMatcher.isGuardPackage(pkg)) {
+            guardPkg = pkg; guardCls = event.className?.toString()
+            guard(retry = true)
+        }
         if (!ignored(pkg)) serial { onForeground(pkg) }
     }
 
@@ -106,6 +126,60 @@ class BlockerService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean { teardown(); return super.onUnbind(intent) }
     override fun onDestroy() { teardown(); super.onDestroy() }
+
+    private fun scheduleGuard() {
+        guardScan?.cancel()
+        guardScan = scope.launch { delay(300); guard(retry = false) }
+    }
+
+    /** Scans the active window now; ejects (Back, then Home) if it could disable or uninstall Ebb. */
+    private fun guard(retry: Boolean) {
+        val root = rootInActiveWindow
+        val pkg = root?.packageName?.toString()
+        if (pkg == null || !GuardMatcher.isGuardPackage(pkg)) {
+            @Suppress("DEPRECATION") root?.recycle()
+            if (retry) scheduleGuard() // active window not updated yet
+            return
+        }
+        val texts = texts(root)
+        val cls = guardCls.takeIf { guardPkg == pkg }
+        serial {
+            if (!repo.protectionEnabledFlow.first()) return@serial
+            val pledge = Pledge.isActive(repo.pledge(), clock.now())
+            if (!GuardMatcher.shouldEject(pkg, cls, texts, getString(R.string.app_name), pledge)) return@serial
+            // Our own activation screen (Admin.enableIntent) must stay usable until the admin is on.
+            if (cls?.contains("DeviceAdminAdd") == true && !Admin.isActive(this)) return@serial
+            eject()
+        }
+    }
+
+    /** Breadth-first text and content descriptions of up to [GUARD_NODES] nodes; recycles every node. */
+    private fun texts(root: AccessibilityNodeInfo): List<CharSequence> {
+        val out = ArrayList<CharSequence>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
+        var seen = 0
+        while (queue.isNotEmpty()) {
+            val n = queue.removeFirst()
+            seen++
+            n.text?.let { out += it.toString() }
+            n.contentDescription?.let { out += it.toString() }
+            for (i in 0 until n.childCount) {
+                if (seen + queue.size >= GUARD_NODES) break
+                n.getChild(i)?.let(queue::add)
+            }
+            @Suppress("DEPRECATION") n.recycle()
+        }
+        return out
+    }
+
+    private fun eject() {
+        performGlobalAction(GLOBAL_ACTION_BACK) // closes a dialog
+        scope.launch { delay(150); performGlobalAction(GLOBAL_ACTION_HOME) } // leaves Settings
+        val now = SystemClock.uptimeMillis()
+        if (now - lastToast < 5_000) return
+        lastToast = now
+        Toast.makeText(this, R.string.guard_toast, Toast.LENGTH_SHORT).show()
+    }
 
     private fun ignored(pkg: String) = pkg == packageName || pkg == SYSTEM_UI || pkg in imes
 
@@ -319,5 +393,6 @@ class BlockerService : AccessibilityService() {
     private companion object {
         const val TAG = "EbbBlocker"
         const val SYSTEM_UI = "com.android.systemui"
+        const val GUARD_NODES = 250
     }
 }

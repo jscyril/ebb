@@ -10,4 +10,7 @@
     <string name="overlay_daily_cap">Daily limit reached</string>
     <string name="overlay_go_home">Go home</string>
     <string name="overlay_times_up">Time\'s up</string>
+    <string name="guard_toast">Ebb protection is on</string>
+    <string name="admin_explanation">Turning this on stops Ebb from being uninstalled on impulse. Ebb asks for no device admin powers: it cannot lock, wipe or watch your phone. You can turn it off later from inside Ebb.</string>
+    <string name="admin_disable_warning">Ebb protection is on. Turn it off from inside Ebb instead.</string>
 </resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis 0: refreshed only on data changes and one inexact alarm (WidgetRefresher). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_today_desc"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="110dp" android:minHeight="110dp"
+    android:minResizeWidth="110dp" android:minResizeHeight="50dp"
+    android:targetCellWidth="2" android:targetCellHeight="2"
+    android:previewImage="@drawable/today_widget_preview_image"
+    android:previewLayout="@layout/today_widget_preview"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

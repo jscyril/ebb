@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- previewImage fallback (before API 31): card with the ring. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="110dp" android:height="110dp" android:viewportWidth="110" android:viewportHeight="110">
+    <path android:pathData="M24,0 H86 A24,24 0 0,1 110,24 V86 A24,24 0 0,1 86,110 H24 A24,24 0 0,1 0,86 V24 A24,24 0 0,1 24,0 Z" android:fillColor="@color/widget_preview_bg" />
+    <path android:pathData="M55,16 A39,39 0 1,1 55,94 A39,39 0 1,1 55,16" android:strokeColor="@color/widget_preview_fg" android:strokeAlpha="0.24" android:strokeWidth="9" />
+    <path android:pathData="M55,16 A39,39 0 1,1 17.9,67.1" android:strokeColor="@color/widget_preview_fg" android:strokeWidth="9" android:strokeLineCap="round" />
+</vector>

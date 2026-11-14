@@ -15,7 +15,7 @@
 - Production-ready: release signing from a git-ignored `keystore.properties` (never commit keys), versionCode/versionName set, no debug logging in release, all user-visible strings in `strings.xml`, content descriptions on icons, TalkBack-usable overlays.
 - Public GitHub repo `jscyril/ebb`; no secrets, keystores or `local.properties` committed.
 - Gradle runs on `JAVA_HOME=/usr/lib/jvm/java-17-openjdk`; system default JDK 27 is not changed.
-- No foreground service, no polling; detection listens to `TYPE_WINDOW_STATE_CHANGED` only; `packageNames` limited to blocked apps + guard packages.
+- No foreground service, no polling; detection listens to `TYPE_WINDOW_STATE_CHANGED` only; `packageNames` unset (all apps), filtered in code (ruling T5: needed to see the user leave to the launcher).
 - No "skip"/"just this once" button anywhere.
 - Default tiers (session -> lockout): 5 -> 60 min, 15 -> 120, 30 -> 240, 60 -> 480. Default daily cap 60 min. All editable.
 - Loosening a rule waits 24 h; tightening is immediate. Pledge choices 7/30/90 days; passcode is 24 chars, shown once, stored as a salted PBKDF2 hash. Disabling protection after a pledge: 48 h wait + typed phrase.

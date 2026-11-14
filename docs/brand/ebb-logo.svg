@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 10 88 88" width="512" height="512">
+  <!-- Same geometry as res/drawable/ic_launcher_foreground.xml (108 canvas); viewBox adds README padding around the 66 safe zone. -->
+  <defs>
+    <clipPath id="inner"><circle cx="54" cy="54" r="20"/></clipPath>
+  </defs>
+  <rect x="10" y="10" width="88" height="88" rx="20" fill="#BFE3DA"/>
+  <path d="M54,28 A26,26 0 1,1 54,80 A26,26 0 1,1 54,28" fill="none" stroke="#0E5E66" stroke-opacity="0.22" stroke-width="6"/>
+  <path d="M54,28 A26,26 0 1,1 28,54" fill="none" stroke="#0E5E66" stroke-width="6" stroke-linecap="round"/>
+  <path clip-path="url(#inner)" d="M19,58 Q29,51 39,58 T59,58 T79,58 T99,58 L99,80 L19,80 Z" fill="#0E5E66"/>
+</svg>

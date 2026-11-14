@@ -32,7 +32,7 @@ The user doomscrolls and wants to use their phone less. They want an Android app
 Kotlin, Jetpack Compose with Material 3 Expressive, Room (events), DataStore (settings/rules/pledge), Glance (widgets), Navigation Compose, manual DI (no Hilt). minSdk 29, target/compile 36. R8 + resource shrinking on release; vector icons only; system font. Charts drawn with Compose Canvas. Gradle wrapper pinned and run on JDK 17 (the system default is JDK 27, which Android Gradle Plugin does not support).
 
 ## Architecture
-- **Detection: an AccessibilityService, event-driven.** It listens to `TYPE_WINDOW_STATE_CHANGED` only. `packageNames` is limited to the blocked apps plus the Settings/installer packages used by the guard, and updated when rules change. No polling.
+- **Detection: an AccessibilityService, event-driven.** It listens to `TYPE_WINDOW_STATE_CHANGED` only. `packageNames` is left unset so the service also sees the user leaving to the launcher; events are filtered in code (window-state changes only, which are infrequent). No polling.
 - **Session engine (pure Kotlin, unit-tested).** Inputs: rule, current state, now. Outputs: `Allow(until)`, `Prompt`, `Blocked(until, reason)`.
   - A session is a wall-clock window. Leaving the app early does not refund time.
   - The lockout starts when the session ends.

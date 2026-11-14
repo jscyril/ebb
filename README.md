@@ -34,7 +34,7 @@ Hard, not impossible.
 - **After a pledge**, turning protection off takes a 48 h wait plus a typed phrase. (Ending a pledge early with the passcode does not skip this wait.)
 - **Trusted clock.** Time is anchored to elapsed realtime, so changing the system clock never shortens a lockout, cooldown or pledge.
 
-**Known holes:** safe mode, `adb uninstall`, factory reset, and a reboot combined with a forward clock jump. The Settings guard matches English text (class names and the app name still work in other languages). Device Owner mode (set up via adb on a freshly reset phone) could close most of these and is a possible future hardening.
+**Known holes:** safe mode, `adb uninstall`, factory reset, and changing the clock while Ebb's service is off, then rebooting (a change made while it runs is undone after a reboot). The Settings guard matches English text (class names and the app name still work in other languages). Device Owner mode (set up via adb on a freshly reset phone) could close most of these and is a possible future hardening.
 
 ## Install
 

@@ -30,8 +30,9 @@ internal object Keys {
     val ZONE = stringPreferencesKey("zone_id")
 }
 
+/** [skew] is wall clock minus trusted time when saved; after a reboot it undoes a clock change made before it. */
 @Serializable
-data class ClockAnchor(val wall: Long = 0, val elapsed: Long = 0, val lastTrusted: Long = 0, val bootCount: Int = 0)
+data class ClockAnchor(val wall: Long = 0, val elapsed: Long = 0, val lastTrusted: Long = 0, val bootCount: Int = 0, val skew: Long = 0)
 
 enum class DarkMode { SYSTEM, LIGHT, DARK, AMOLED }
 enum class Accent { DYNAMIC, TIDE, CORAL, MOSS, DUSK, SAND }

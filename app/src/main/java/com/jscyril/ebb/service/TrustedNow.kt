@@ -18,17 +18,19 @@ class TrustedNow(private val ctx: Context, private val repo: Repo, private val s
         val boot = bootCount(ctx)
         val elapsed = SystemClock.elapsedRealtime()
         val t = fromAnchor(repo.clockAnchor(), boot, elapsed)
-        anchor = ClockAnchor(t, elapsed, t, boot)
+        anchor = ClockAnchor(t, elapsed, t, boot, System.currentTimeMillis() - t)
         lastSavedElapsed = elapsed
         repo.saveClockAnchor(anchor)
     }
 
-    fun now(): Long {
+    /** [persist] saves the anchor now instead of at most once a minute; used when the wall clock was changed. */
+    fun now(persist: Boolean = false): Long {
         val elapsed = SystemClock.elapsedRealtime()
-        val t = TrustedClock.trusted(anchor.wall, anchor.elapsed, elapsed, System.currentTimeMillis(), anchor.lastTrusted, rebooted = false)
-        if (elapsed - lastSavedElapsed >= 60_000) {
+        val wall = System.currentTimeMillis()
+        val t = TrustedClock.trusted(anchor.wall, anchor.elapsed, elapsed, wall, anchor.lastTrusted, rebooted = false)
+        if (persist || elapsed - lastSavedElapsed >= 60_000) {
             lastSavedElapsed = elapsed
-            anchor = anchor.copy(lastTrusted = t)
+            anchor = anchor.copy(lastTrusted = t, skew = wall - t)
             val a = anchor
             scope.launch { repo.saveClockAnchor(a) }
         }
@@ -40,7 +42,7 @@ class TrustedNow(private val ctx: Context, private val repo: Repo, private val s
 
         private fun fromAnchor(a: ClockAnchor?, boot: Int, elapsed: Long) = TrustedClock.trusted(
             a?.wall ?: 0, a?.elapsed ?: 0, elapsed, System.currentTimeMillis(), a?.lastTrusted ?: 0,
-            rebooted = a == null || a.bootCount != boot || elapsed < a.elapsed,
+            rebooted = a == null || a.bootCount != boot || elapsed < a.elapsed, skew = a?.skew ?: 0,
         )
 
         /** Trusted now for the app's screens: read-only, so only the service ever moves the anchor. */

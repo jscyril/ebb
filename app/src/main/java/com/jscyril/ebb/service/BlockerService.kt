@@ -99,6 +99,8 @@ class BlockerService : AccessibilityService() {
             when (i.action) {
                 Intent.ACTION_SCREEN_OFF -> serial { onScreenOff() }
                 Intent.ACTION_INPUT_METHOD_CHANGED -> imes = loadImes()
+                // Save the new wall/trusted skew at once, so a reboot right after can't turn the change into trusted time.
+                Intent.ACTION_TIME_CHANGED -> serial { clock.now(persist = true) }
                 else -> wakeRecheck()
             }
         }
@@ -113,6 +115,7 @@ class BlockerService : AccessibilityService() {
         val f = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT); addAction(Intent.ACTION_INPUT_METHOD_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
         }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, f, RECEIVER_NOT_EXPORTED)
         else registerReceiver(receiver, f)

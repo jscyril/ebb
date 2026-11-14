@@ -40,6 +40,11 @@ class EmergencyActivity : ComponentActivity() {
         finish()
     }
 
+    override fun onResume() {
+        super.onResume()
+        BlockerService.instance?.emergencyUp()
+    }
+
     override fun onStop() {
         super.onStop()
         finish() // the user left (Home, recents, screen off): the flow resets

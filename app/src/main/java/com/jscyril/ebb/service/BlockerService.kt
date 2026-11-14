@@ -41,6 +41,7 @@ import com.jscyril.ebb.ui.overlay.PromptScreen
 import com.jscyril.ebb.ui.overlay.TimesUpScreen
 import com.jscyril.ebb.ui.theme.EbbThemeFromRepo
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,6 +53,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.time.ZoneId
 
@@ -84,6 +86,10 @@ class BlockerService : AccessibilityService() {
     private var guardCls: String? = null
     private var lastToast = 0L
     private val icons = LruCache<String, ImageBitmap>(8)
+    private var emergencyLaunch: Job? = null // the one pending EmergencyActivity start
+    private var launcherSeen: CompletableDeferred<Unit>? = null // completed by the launcher event after its Home
+    private var launchingPkg: String? = null // FULL overlays for it are held back until the Activity is up
+    private var launchingUntil = 0L // uptime
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -240,6 +246,7 @@ class BlockerService : AccessibilityService() {
         val direct = pkg != null && pkg in rules
         val wins = if (direct) emptyList() else appWindows()
         val target = if (direct) pkg else visibleWatched(wins.map { it.first }, rules.keys, tracker.pkg ?: fgPkg)
+        if (pkg != null && pkg !in rules) launcherSeen?.complete(Unit) // the Home before an emergency launch landed
         val isNew = (target ?: pkg) != fgPkg
         fgPkg = target ?: pkg
         if (target == null) {
@@ -259,6 +266,8 @@ class BlockerService : AccessibilityService() {
         }
         val d = SessionEngine.decide(rule, s, now, zone)
         record(tracker.onForeground(pkg, d is Decision.Allow, now))
+        // A FULL Block/Prompt now would cover the EmergencyActivity that is opening (the locked app may still be active).
+        if (d !is Decision.Allow && suppressFull(launchingPkg, pkg, bounds == null, SystemClock.uptimeMillis(), launchingUntil)) return
         when (d) {
             is Decision.Allow -> { dismiss(); schedule(rule, pkg, now) }
             is Decision.Prompt -> {
@@ -305,6 +314,7 @@ class BlockerService : AccessibilityService() {
 
     /** Block's emergency action: leaves the overlay for [EmergencyActivity], a normal window where the keyboard works. */
     private suspend fun openEmergency(pkg: String) {
+        if (mode == null || overlay?.isShowing != true) return // no Block showing: a queued double tap
         val now = clock.now()
         val rule = activeRules(now)[pkg] ?: return
         val passes = passesLeft(now)
@@ -318,11 +328,26 @@ class BlockerService : AccessibilityService() {
         // fgPkg = pkg keeps that recheck from counting a new attempt (whose Home would close the Activity).
         performGlobalAction(GLOBAL_ACTION_HOME)
         fgPkg = pkg
-        startActivity(EmergencyActivity.intent(this, pkg, label(pkg), passes))
+        val name = label(pkg)
+        val seen = CompletableDeferred<Unit>()
+        emergencyLaunch?.cancel()
+        launcherSeen = seen
+        launchingPkg = pkg
+        launchingUntil = SystemClock.uptimeMillis() + LAUNCH_WAIT_MS + LAUNCH_UP_MS
+        // Start only once Home has landed (or after a short wait), so Home can't stop the Activity it just opened.
+        emergencyLaunch = scope.launch {
+            withTimeoutOrNull(LAUNCH_WAIT_MS) { seen.await() }
+            if (launcherSeen === seen) launcherSeen = null
+            launchingUntil = SystemClock.uptimeMillis() + LAUNCH_UP_MS
+            startActivity(EmergencyActivity.intent(this@BlockerService, pkg, name, passes))
+        }
     }
 
+    /** [EmergencyActivity] resumed: overlays may show normally again. */
+    fun emergencyUp() { launchingPkg = null }
+
     /** [EmergencyActivity] closed without a confirm (cancel, Back, user left): gate whatever is visible again. */
-    fun emergencyClosed() = scope.launch { scheduleRecheck(400) }
+    fun emergencyClosed() = scope.launch { launchingPkg = null; scheduleRecheck(400) }
 
     /** Called by [EmergencyActivity] after the wait and the typed phrase. */
     fun confirmEmergency(pkg: String) = serial {
@@ -480,5 +505,7 @@ class BlockerService : AccessibilityService() {
         private const val SYSTEM_UI = "com.android.systemui"
         private const val GUARD_NODES = 250
         private const val ICON_PX = 96
+        private const val LAUNCH_WAIT_MS = 600L // max wait for Home to land before opening EmergencyActivity
+        private const val LAUNCH_UP_MS = 2_000L // then how long FULL overlays stay held back if it never resumes
     }
 }

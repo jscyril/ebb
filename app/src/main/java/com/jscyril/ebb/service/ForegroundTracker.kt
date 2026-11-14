@@ -58,3 +58,10 @@ fun overlayMode(activePkg: String?, ownPkg: String, watchedVisible: String?, wat
         current != null && (activePkg == null || activePkg == ownPkg) -> current
         else -> OverlayMode.WINDOW
     }
+
+/**
+ * While EmergencyActivity is being opened for [launching] (until [untilUptime]), hold back FULL overlays for it:
+ * they would cover the opening Activity. WINDOW overlays over a surviving PiP still show.
+ */
+fun suppressFull(launching: String?, pkg: String, full: Boolean, nowUptime: Long, untilUptime: Long): Boolean =
+    full && launching == pkg && nowUptime < untilUptime

@@ -339,7 +339,10 @@ class BlockerService : AccessibilityService() {
             withTimeoutOrNull(LAUNCH_WAIT_MS) { seen.await() }
             if (launcherSeen === seen) launcherSeen = null
             launchingUntil = SystemClock.uptimeMillis() + LAUNCH_UP_MS
-            startActivity(EmergencyActivity.intent(this@BlockerService, pkg, name, passes))
+            runCatching { startActivity(EmergencyActivity.intent(this@BlockerService, pkg, name, passes)) }
+            delay(LAUNCH_UP_MS)
+            // Never resumed (start blocked or deferred): a suppressed gate left the app usable, so gate it again.
+            if (launchingPkg == pkg) { launchingPkg = null; scheduleRecheck(0) }
         }
     }
 

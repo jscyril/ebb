@@ -41,8 +41,43 @@ class ChangeQueueTest {
     @Test fun mixedGoesPending() = looser(rules(listOf(Tier(15, 180)), cap = 90, extra = true))
 
     @Test fun newPendingReplacesOld() {
-        val p = rules(cap = 90, extra = true)
-        assertEquals(Pending(p, now + h24), ChangeQueue.submit(base, p, now).second)
+        val l1 = rules(cap = 90, extra = true)
+        val l2 = rules(cap = 120, extra = true)
+        val (c1, p1) = ChangeQueue.submit(base, l1, now)
+        assertEquals(base, c1); assertEquals(l1, p1!!.newRules)
+        val p2 = ChangeQueue.submit(c1, l2, now + 5_000).second!!
+        assertEquals(l2, p2.newRules)
+        assertEquals(now + 5_000 + h24, p2.effectiveAt)
+    }
+
+    @Test fun pkgChangePending() =
+        looser(Rules(mapOf("a" to AppRule("x", listOf(Tier(15, 120)), 60), "b" to base.apps.getValue("b")), 2))
+    @Test fun invalidOldTierIgnored() {
+        val cur = rules(listOf(Tier(20, -5)))
+        val p = rules(listOf(Tier(20, 0)))
+        assertEquals(Pending(p, now + h24), ChangeQueue.submit(cur, p, now).second)
+    }
+    @Test fun invalidProposedTierPending() = looser(rules(listOf(Tier(15, 120), Tier(0, 10)), extra = true))
+    @Test fun sessionBetweenOldTiersPending() {
+        val cur = rules(listOf(Tier(10, 60), Tier(30, 120)))
+        assertEquals(Pending(rules(listOf(Tier(20, 500))), now + h24), ChangeQueue.submit(cur, rules(listOf(Tier(20, 500))), now).second)
+    }
+    @Test fun shorterSessionLowerLockPending() {
+        val cur = rules(listOf(Tier(10, 60)))
+        assertEquals(Pending(rules(listOf(Tier(5, 30))), now + h24), ChangeQueue.submit(cur, rules(listOf(Tier(5, 30))), now).second)
+    }
+    @Test fun emptyOldPlusAddedTierPending() {
+        val cur = rules(emptyList())
+        assertEquals(Pending(rules(), now + h24), ChangeQueue.submit(cur, rules(), now).second)
+    }
+    @Test fun emptyProposedImmediate() {
+        val p = rules(emptyList())
+        assertEquals(p to null, ChangeQueue.submit(rules(), p, now))
+    }
+    @Test fun duplicateOldSessionMinsUseMaxLock() {
+        val cur = rules(listOf(Tier(15, 60), Tier(15, 200)))
+        assertEquals(rules(listOf(Tier(15, 200))) to null, ChangeQueue.submit(cur, rules(listOf(Tier(15, 200))), now))
+        assertEquals(Pending(rules(listOf(Tier(15, 100))), now + h24), ChangeQueue.submit(cur, rules(listOf(Tier(15, 100))), now).second)
     }
 
     @Test fun matureOnlyAfterEffective() {

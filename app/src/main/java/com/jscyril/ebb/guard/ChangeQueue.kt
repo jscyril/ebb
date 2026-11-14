@@ -21,12 +21,17 @@ object ChangeQueue {
             cur.apps.any { (pkg, old) -> new.apps[pkg]?.let { appLooser(old, it) } ?: true }
 
     private fun appLooser(old: AppRule, new: AppRule): Boolean {
-        if (new.dailyCapMin > old.dailyCapMin) return true
-        val oldShortest = old.tiers.minByOrNull { it.sessionMin }
+        if (new.pkg != old.pkg || new.dailyCapMin > old.dailyCapMin) return true
+        if (new.tiers.any { !it.isValid }) return true
+        val oldTiers = old.tiers.filter { it.isValid }
+        val shortest = oldTiers.minOfOrNull { it.sessionMin }
         return new.tiers.any { t ->
-            val same = old.tiers.firstOrNull { it.sessionMin == t.sessionMin }
-            if (same != null) t.lockMin < same.lockMin
-            else oldShortest == null || t.sessionMin > oldShortest.sessionMin || t.lockMin < oldShortest.lockMin
+            val same = oldTiers.filter { it.sessionMin == t.sessionMin }
+            when {
+                same.isNotEmpty() -> t.lockMin < same.maxOf { it.lockMin }
+                shortest == null || t.sessionMin > shortest -> true
+                else -> t.lockMin < oldTiers.filter { it.sessionMin == shortest }.maxOf { it.lockMin }
+            }
         }
     }
 }

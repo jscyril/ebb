@@ -23,7 +23,7 @@ object SessionEngine {
         val lock = listOfNotNull(s.lockedUntil, expiredLock).maxOrNull()
         if (lock != null && lock > now) return Decision.Blocked(lock, Reason.COOLDOWN)
         val remaining = rule.dailyCapMin.coerceAtLeast(0) * 60 - usedToday(s, now, zone)
-        val options = rule.tiers.filter { it.sessionMin > 0 && it.lockMin >= 0 && it.sessionMin * 60L <= remaining }
+        val options = rule.tiers.filter { it.isValid && it.sessionMin * 60L <= remaining }
             .sortedBy { it.sessionMin }
         return if (options.isEmpty()) Decision.Blocked(nextMidnight(now, zone), Reason.DAILY_CAP) else Decision.Prompt(options)
     }

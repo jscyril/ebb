@@ -1,6 +1,9 @@
 package com.jscyril.ebb.engine
 
-data class Tier(val sessionMin: Int, val lockMin: Int)
+data class Tier(val sessionMin: Int, val lockMin: Int) {
+    /** The engine ignores tiers failing this; guard comparisons use the same rule. */
+    val isValid get() = sessionMin > 0 && lockMin >= 0
+}
 data class AppRule(val pkg: String, val tiers: List<Tier>, val dailyCapMin: Int)
 data class AppState(
     val dayKey: Int,

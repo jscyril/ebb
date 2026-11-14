@@ -14,4 +14,14 @@ class DisableRequestTest {
     @Test fun false47h() = assertFalse(DisableRequest.canDisable(ended, now - 47 * h, now))
     @Test fun true48h() = assertTrue(DisableRequest.canDisable(ended, now - 48 * h, now))
     @Test fun trueNoPledge() = assertTrue(DisableRequest.canDisable(null, now - 48 * h, now))
+
+    @Test fun requestFiledDuringPledgeNeverCounts() {
+        val p = PledgeRecord(100 * h, ByteArray(1), ByteArray(1))
+        assertFalse(DisableRequest.canDisable(p, 1 * h, 100 * h + 48 * h))
+    }
+    @Test fun requestAtPledgeEndCounts() {
+        val p = PledgeRecord(100 * h, ByteArray(1), ByteArray(1))
+        assertTrue(DisableRequest.canDisable(p, 100 * h, 148 * h))
+        assertFalse(DisableRequest.canDisable(p, 100 * h, 147 * h))
+    }
 }

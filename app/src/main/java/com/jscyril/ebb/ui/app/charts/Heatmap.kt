@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -56,7 +57,8 @@ fun HourHeatmap(
     val select by rememberUpdatedState(onSelect)
 
     Column(modifier.clearAndSetSemantics { contentDescription = description; if (tooltip != null) stateDescription = tooltip }) {
-        if (selected != null && tooltip != null) TooltipChip(tooltip, (selected % COLS + 0.5f) / COLS, Modifier.padding(bottom = 8.dp))
+        // Always laid out (invisible when nothing is selected) so the card height doesn't jump.
+        TooltipChip(tooltip.orEmpty(), ((selected ?: 0) % COLS + 0.5f) / COLS, Modifier.padding(bottom = 8.dp).alpha(if (tooltip == null) 0f else 1f))
         Canvas(
             Modifier.fillMaxWidth().height(CELL_H * 2 + LABEL_H * 2 + GAP).pointerInput(Unit) {
                 detectTapGestures { o ->

@@ -169,8 +169,8 @@ fun Dashboard(contentPadding: PaddingValues, vm: InsightsVm = viewModel()) {
             }
         }
         item(key = "week") {
-            // One guide only when every watched app shares the same cap.
-            val guide = caps.distinct().singleOrNull()?.takeIf { it > 0 }?.let { it * 60L }
+            // Same denominator as the hero ring: bars sum all watched apps, so the guide is the summed cap.
+            val guide = (caps.sum() * 60L).takeIf { it > 0 }
             WeekCard(week.map { it.dayKey }, week.map { it.seconds }, selectedKey ?: today.dayKey, guide, vm::select, Modifier.animateItem())
         }
         item(key = "apps") {
@@ -273,7 +273,10 @@ private fun AppBarRow(pkg: String?, name: String, seconds: Long, max: Long) {
             Box(
                 Modifier.padding(top = 6.dp).fillMaxWidth().height(4.dp).drawBehind {
                     val r = CornerRadius(size.height / 2)
-                    drawRoundRect(bar, size = Size(size.width * f, size.height), cornerRadius = r)
+                    val w = size.width * f
+                    drawRoundRect(bar, size = Size(w, size.height), cornerRadius = r)
+                    // Square the baseline (start) end; only the data end stays rounded.
+                    drawRect(bar, size = Size(minOf(w, r.x), size.height))
                 },
             )
         }

@@ -313,9 +313,16 @@ class BlockerService : AccessibilityService() {
         dismiss()
         // Our own package's events are ignored, so close tracking here as if the user left.
         record(tracker.onForeground(null, false, now))
-        fgPkg = null
+        // Home first, so a split pane or the app behind a PiP can't keep playing through the wait. A PiP that
+        // survives Home floats above the Activity: the windows-changed recheck re-covers it with a WINDOW overlay.
+        // fgPkg = pkg keeps that recheck from counting a new attempt (whose Home would close the Activity).
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        fgPkg = pkg
         startActivity(EmergencyActivity.intent(this, pkg, label(pkg), passes))
     }
+
+    /** [EmergencyActivity] closed without a confirm (cancel, Back, user left): gate whatever is visible again. */
+    fun emergencyClosed() = scope.launch { scheduleRecheck(400) }
 
     /** Called by [EmergencyActivity] after the wait and the typed phrase. */
     fun confirmEmergency(pkg: String) = serial {

@@ -17,5 +17,7 @@ class OverlayModeTest {
     @Test fun launcherActiveDowngradesToWindow() = assertEquals(WINDOW, mode("launcher", "a", FULL))
     @Test fun noOverlayOtherActiveIsWindow() = assertEquals(WINDOW, mode("launcher", "a", null))
     @Test fun ownActiveKeepsWindow() = assertEquals(WINDOW, mode(own, "a", WINDOW))
+    // Emergency Activity (own package, reported as unknown) is active with no overlay while a watched PiP is visible.
+    @Test fun ownActivityOverPipNoOverlayIsWindow() = assertEquals(WINDOW, mode(null, "a", null))
     @Test fun nothingVisibleIsNull() = assertNull(mode("launcher", null, FULL))
 }

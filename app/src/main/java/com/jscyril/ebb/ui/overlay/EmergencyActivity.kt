@@ -16,6 +16,8 @@ import com.jscyril.ebb.ui.theme.EbbThemeFromRepo
  * may not get one). noHistory + finish on stop: leaving starts the 60 s wait over; nothing is restored.
  */
 class EmergencyActivity : ComponentActivity() {
+    private var confirmed = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -33,6 +35,7 @@ class EmergencyActivity : ComponentActivity() {
             Toast.makeText(this, R.string.emergency_no_service, Toast.LENGTH_LONG).show()
             return
         }
+        confirmed = true
         service.confirmEmergency(pkg)
         finish()
     }
@@ -40,6 +43,11 @@ class EmergencyActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         finish() // the user left (Home, recents, screen off): the flow resets
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing && !confirmed) BlockerService.instance?.emergencyClosed() // re-cover a PiP or the app
     }
 
     companion object {

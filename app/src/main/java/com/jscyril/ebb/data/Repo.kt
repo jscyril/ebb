@@ -91,7 +91,7 @@ class Repo private constructor(ctx: Context) {
     }
 
     // ---- pledge / pending / disable request
-    val pledgeFlow: Flow<PledgeRecord?> = ds.data.map { p -> p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) }?.toRecord() }
+    val pledgeFlow: Flow<PledgeRecord?> = ds.data.map { p -> p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) }?.record }
     suspend fun pledge(): PledgeRecord? = pledgeFlow.first()
     suspend fun savePledge(r: PledgeRecord?) =
         put(Keys.PLEDGE, r) { json.encodeToString(PledgeDto.serializer(), PledgeDto.of(it)) }

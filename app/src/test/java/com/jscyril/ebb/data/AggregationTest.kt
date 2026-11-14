@@ -4,7 +4,9 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import com.jscyril.ebb.engine.AppState
+import com.jscyril.ebb.guard.PledgeRecord
 import com.jscyril.ebb.guard.Rules
+import kotlinx.serialization.builtins.nullable
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -56,6 +58,21 @@ class AggregationTest {
         assertEquals("{nope", seen)
         assertEquals(AppState(), decodeOr(null, AppState.serializer(), AppState()))
     }
+
+    @Test fun badPledgeBase64GivesNullAndReports() {
+        var seen: String? = null
+        val raw = """{"endsAt":5,"salt":"!!not base64!!","hash":"AA=="}"""
+        assertEquals(null, decodeOr(raw, PledgeDto.serializer().nullable, null) { seen = it })
+        assertEquals(raw, seen)
+        val ok = PledgeRecord(5, byteArrayOf(1, 2), byteArrayOf(3))
+        val back = decodeOr(json.encodeToString(PledgeDto.serializer(), PledgeDto.of(ok)), PledgeDto.serializer().nullable, null)!!.record
+        assertEquals(5L, back.endsAt)
+        assertArrayEquals(ok.salt, back.salt)
+        assertArrayEquals(ok.hash, back.hash)
+    }
+
+    @Test fun oldClockAnchorWithoutSkewDecodes() =
+        assertEquals(ClockAnchor(1, 2, 3, 4, 0), decodeOr("""{"wall":1,"elapsed":2,"lastTrusted":3,"bootCount":4}""", ClockAnchor.serializer(), ClockAnchor()))
 
     @Test fun decodeOldJsonMissingFieldsUsesDefaults() {
         val s = decodeOr("""{"usedTodaySec":7,"future":1}""", AppState.serializer(), AppState(dayKey = 99))

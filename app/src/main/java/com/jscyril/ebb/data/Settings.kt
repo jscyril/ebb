@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.jscyril.ebb.guard.PledgeRecord
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import java.util.Base64
 
@@ -41,7 +42,8 @@ data class ThemePrefs(val dark: DarkMode = DarkMode.SYSTEM, val accent: Accent =
 /** ByteArrays as Base64 so the record fits a JSON string. */
 @Serializable
 internal class PledgeDto(val endsAt: Long = 0, val salt: String = "", val hash: String = "") {
-    fun toRecord() = PledgeRecord(endsAt, Base64.getDecoder().decode(salt), Base64.getDecoder().decode(hash))
+    /** Decoded while deserializing, so bad Base64 fails inside [decodeOr] (null + `_corrupt` copy), not in the caller. */
+    @Transient val record = PledgeRecord(endsAt, Base64.getDecoder().decode(salt), Base64.getDecoder().decode(hash))
     companion object {
         fun of(r: PledgeRecord) = PledgeDto(
             r.endsAt, Base64.getEncoder().encodeToString(r.salt), Base64.getEncoder().encodeToString(r.hash),

@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Rect
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Build
 import android.text.format.DateFormat
 import android.util.Log
@@ -55,6 +57,10 @@ class BlockerService : AccessibilityService() {
     private var timer: Job? = null
     private var imes: Set<String> = emptySet()
     private var sticky = false // full-screen Block/TimesUp survives the Home it triggers
+    private var rescan: Job? = null
+    private val attempts = AttemptDedupe(3_000)
+    private val focus by lazy { AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).build() }
+    private var holdingFocus = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -69,7 +75,7 @@ class BlockerService : AccessibilityService() {
     override fun onServiceConnected() {
         repo = Repo.get(this)
         clock = TrustedNow(this, repo, scope)
-        overlay = OverlayHost(this)
+        overlay = OverlayHost(this, ::goHome)
         imes = loadImes()
         val f = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON)
@@ -82,6 +88,12 @@ class BlockerService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            // PiP move/resize, split divider etc. Fires often, so stay idle unless something is gated or a window appeared.
+            val added = event.windowChanges and AccessibilityEvent.WINDOWS_CHANGE_ADDED != 0
+            if (tracker.pkg != null || overlay?.isShowing == true || added) scheduleRecheck(250)
+            return
+        }
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
         if (!ignored(pkg)) serial { onForeground(pkg) }
@@ -101,6 +113,12 @@ class BlockerService : AccessibilityService() {
     private fun wakeRecheck() {
         imes = loadImes()
         for (d in longArrayOf(0, 500, 1_500)) scope.launch { delay(d); recheck() }
+    }
+
+    /** Debounced: a newer request replaces a pending one. */
+    private fun scheduleRecheck(ms: Long) {
+        rescan?.cancel()
+        rescan = scope.launch { delay(ms); recheck() }
     }
 
     private fun recheck() {
@@ -153,17 +171,17 @@ class BlockerService : AccessibilityService() {
             is Decision.Prompt -> {
                 cancelTimer()
                 val label = label(pkg)
-                show(bounds, sticky = false) { PromptOverlay(label, d.options) { t -> serial { pick(pkg, t) } } }
+                show(bounds, blocking = false) { PromptOverlay(label, d.options) { t -> serial { pick(pkg, t) } } }
             }
             is Decision.Blocked -> {
                 cancelTimer()
-                if (isNew) {
+                if (isNew && attempts.shouldCount(pkg, now)) {
                     repo.logSession(pkg, now, now, 0, Kind.BLOCKED_ATTEMPT)
                     performGlobalAction(GLOBAL_ACTION_HOME) // background it so audio/video usually stop
                 }
                 val label = label(pkg)
                 val until = if (d.reason == Reason.COOLDOWN) timeText(d.until) else null
-                show(bounds, sticky = true) { BlockOverlay(label, until, ::goHome) }
+                show(bounds, blocking = true) { BlockOverlay(label, until, ::goHome) }
             }
         }
     }
@@ -194,7 +212,7 @@ class BlockerService : AccessibilityService() {
             schedule(rule, pkg, now)
         } else {
             performGlobalAction(GLOBAL_ACTION_HOME)
-            show(null, sticky = true) { TimesUpOverlay(::goHome) }
+            show(null, blocking = true) { TimesUpOverlay(::goHome) }
         }
     }
 
@@ -248,16 +266,27 @@ class BlockerService : AccessibilityService() {
         repo.updateState(iv.pkg) { SessionEngine.addForeground(it, sec, iv.end - 1, zone) }
     }
 
-    private fun show(bounds: Rect?, sticky: Boolean, content: @Composable () -> Unit) {
-        this.sticky = sticky && bounds == null
+    /** [blocking] = Block/TimesUp: sticky when full screen, and holds audio focus to pause a playing video. */
+    private fun show(bounds: Rect?, blocking: Boolean, content: @Composable () -> Unit) {
+        sticky = blocking && bounds == null
         overlay?.show(bounds, content)
+        audioFocus(blocking)
     }
 
-    private fun dismiss() { overlay?.dismiss(); sticky = false }
+    private fun dismiss() { overlay?.dismiss(); sticky = false; audioFocus(false) }
 
+    private fun audioFocus(hold: Boolean) {
+        if (hold == holdingFocus) return
+        val am = getSystemService(AudioManager::class.java) ?: return
+        holdingFocus = hold
+        if (hold) am.requestAudioFocus(focus) else am.abandonAudioFocusRequest(focus)
+    }
+
+    /** Go home button, Back key and TimesUp; re-checks after, so a PiP that survives Home is covered again. */
     private fun goHome() {
         performGlobalAction(GLOBAL_ACTION_HOME)
         dismiss()
+        scheduleRecheck(400)
     }
 
     private fun label(pkg: String): String = runCatching {
@@ -272,7 +301,7 @@ class BlockerService : AccessibilityService() {
         if (torn) return
         torn = true
         runCatching { unregisterReceiver(receiver) }
-        overlay?.dismiss(); overlay = null
+        dismiss(); overlay = null
         val iv = if (ready) tracker.onScreenOff(clock.now()) else null
         scope.cancel()
         if (iv != null) CoroutineScope(Dispatchers.IO).launch { runCatching { record(iv) } }

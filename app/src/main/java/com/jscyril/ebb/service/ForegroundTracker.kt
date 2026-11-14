@@ -31,3 +31,15 @@ class ForegroundTracker {
 /** Which watched app is visible among [windowPkgs] (e.g. PiP, split screen); prefers [current]. */
 fun visibleWatched(windowPkgs: List<String>, watched: Set<String>, current: String?): String? =
     current?.takeIf { it in watched && it in windowPkgs } ?: windowPkgs.firstOrNull { it in watched }
+
+/** Counts one blocked attempt per package per [windowMs], so the wake re-checks don't double-count. */
+class AttemptDedupe(private val windowMs: Long) {
+    private var lastPkg: String? = null
+    private var lastAt = 0L
+
+    fun shouldCount(pkg: String, now: Long): Boolean {
+        if (pkg == lastPkg && now - lastAt < windowMs) return false
+        lastPkg = pkg; lastAt = now
+        return true
+    }
+}

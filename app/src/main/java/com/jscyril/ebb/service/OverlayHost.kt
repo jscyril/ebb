@@ -21,12 +21,15 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
-/** Full-screen, focusable accessibility overlay hosting Compose content. Main thread only. */
-class OverlayHost(private val service: AccessibilityService) {
+/** Accessibility overlay hosting Compose content; Back calls [onBack]. Main thread only. */
+class OverlayHost(private val service: AccessibilityService, private val onBack: () -> Unit) {
     private val wm = service.getSystemService(WindowManager::class.java)
     private var root: FrameLayout? = null
     private var compose: ComposeView? = null
     private var owner: Owner? = null
+    private var shownBounds: Rect? = null
+
+    val isShowing get() = root != null
 
     /**
      * Full-screen and focusable when [bounds] is null. With [bounds] (a watched app visible only in PiP or
@@ -34,7 +37,8 @@ class OverlayHost(private val service: AccessibilityService) {
      */
     fun show(bounds: Rect? = null, content: @Composable () -> Unit) {
         root?.let { r ->
-            runCatching { wm.updateViewLayout(r, params(bounds)) }
+            // only on change: a same-rect relayout could feed back as another windows-changed event
+            if (bounds != shownBounds) { runCatching { wm.updateViewLayout(r, params(bounds)) }; shownBounds = bounds }
             compose?.setContent(content)
             return
         }
@@ -43,10 +47,7 @@ class OverlayHost(private val service: AccessibilityService) {
         val frame = object : FrameLayout(service) {
             override fun dispatchKeyEvent(e: KeyEvent): Boolean {
                 if (e.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(e)
-                if (e.action == KeyEvent.ACTION_UP) {
-                    service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-                    dismiss()
-                }
+                if (e.action == KeyEvent.ACTION_UP) onBack()
                 return true
             }
         }
@@ -60,7 +61,7 @@ class OverlayHost(private val service: AccessibilityService) {
             o.destroy()
             throw e
         }
-        root = frame; compose = cv; owner = o
+        root = frame; compose = cv; owner = o; shownBounds = bounds
     }
 
     private fun params(b: Rect?): WindowManager.LayoutParams {

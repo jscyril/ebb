@@ -1,16 +1,19 @@
 package com.jscyril.ebb.data
 
 import android.content.Context
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jscyril.ebb.guard.PledgeRecord
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.Base64
 
-internal val Context.ds by preferencesDataStore("ebb")
+internal val Context.ds by preferencesDataStore("ebb", corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() })
 
-internal val json = Json { ignoreUnknownKeys = true }
+internal val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
 internal object Keys {
     val RULES = stringPreferencesKey("rules")
@@ -28,7 +31,7 @@ internal object Keys {
 }
 
 @Serializable
-data class ClockAnchor(val wall: Long, val elapsed: Long, val lastTrusted: Long, val bootCount: Int)
+data class ClockAnchor(val wall: Long = 0, val elapsed: Long = 0, val lastTrusted: Long = 0, val bootCount: Int = 0)
 
 enum class DarkMode { SYSTEM, LIGHT, DARK, AMOLED }
 enum class Accent { DYNAMIC, TIDE, CORAL, MOSS, DUSK, SAND }
@@ -36,11 +39,17 @@ data class ThemePrefs(val dark: DarkMode = DarkMode.SYSTEM, val accent: Accent =
 
 /** ByteArrays as Base64 so the record fits a JSON string. */
 @Serializable
-internal class PledgeDto(val endsAt: Long, val salt: String, val hash: String) {
+internal class PledgeDto(val endsAt: Long = 0, val salt: String = "", val hash: String = "") {
     fun toRecord() = PledgeRecord(endsAt, Base64.getDecoder().decode(salt), Base64.getDecoder().decode(hash))
     companion object {
         fun of(r: PledgeRecord) = PledgeDto(
             r.endsAt, Base64.getEncoder().encodeToString(r.salt), Base64.getEncoder().encodeToString(r.hash),
         )
     }
+}
+
+/** Decodes [raw] or returns [default]; a present-but-undecodable blob is reported to [onCorrupt] first. */
+internal fun <T> decodeOr(raw: String?, ser: KSerializer<T>, default: T, onCorrupt: (String) -> Unit = {}): T {
+    if (raw == null) return default
+    return try { json.decodeFromString(ser, raw) } catch (e: Exception) { onCorrupt(raw); default }
 }

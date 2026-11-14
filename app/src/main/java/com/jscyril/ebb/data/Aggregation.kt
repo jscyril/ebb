@@ -39,9 +39,20 @@ fun hourlyBuckets(intervals: List<Pair<Long, Long>>, zone: ZoneId): IntArray {
 }
 
 /** The last [days] day keys ending at [todayKey], oldest first, zero rows for missing days. */
-@Suppress("UNUSED_PARAMETER")
-fun fillDays(rows: List<DayTotal>, todayKey: Int, days: Int, zone: ZoneId): List<DayTotal> {
-    val today = LocalDate.of(todayKey / 10000, todayKey / 100 % 100, todayKey % 100)
+fun fillDays(rows: List<DayTotal>, todayKey: Int, days: Int): List<DayTotal> {
+    val today = dateOfKey(todayKey)
     val byKey = rows.associateBy { it.dayKey }
     return (days - 1 downTo 0).map { dayKeyOf(today.minusDays(it.toLong())).let { k -> byKey[k] ?: DayTotal(k, 0, 0, 0) } }
+}
+
+fun dateOfKey(key: Int): LocalDate = LocalDate.of(key / 10000, key / 100 % 100, key % 100)
+
+data class Bump(val dayKey: Int, val seconds: Long, val opens: Int, val blocked: Int)
+
+/** Aggregate increments for one logged event. */
+fun bumpsFor(kind: Kind, start: Long, end: Long, zone: ZoneId): List<Bump> = when (kind) {
+    Kind.FOREGROUND -> splitByDay(start, end, zone).map { (d, s) -> Bump(d, s, 0, 0) }
+    Kind.SESSION -> listOf(Bump(dayKeyOf(start, zone), 0, 1, 0))
+    Kind.BLOCKED_ATTEMPT -> listOf(Bump(dayKeyOf(start, zone), 0, 0, 1))
+    Kind.EMERGENCY -> emptyList()
 }

@@ -3,20 +3,24 @@ package com.jscyril.ebb.engine
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Tier(val sessionMin: Int, val lockMin: Int) {
+data class Tier(val sessionMin: Int = 0, val lockMin: Int = 0) {
     /** The engine ignores tiers failing this; guard comparisons use the same rule. */
     val isValid get() = sessionMin > 0 && lockMin >= 0
 }
 @Serializable
-data class AppRule(val pkg: String, val tiers: List<Tier>, val dailyCapMin: Int)
+data class AppRule(
+    val pkg: String = "",
+    val tiers: List<Tier> = Defaults.TIERS,
+    val dailyCapMin: Int = Defaults.DAILY_CAP_MIN,
+)
 @Serializable
 data class AppState(
-    val dayKey: Int,
-    val usedTodaySec: Int,
-    val sessionEndsAt: Long?,
-    val sessionLockMin: Int?,
-    val lockedUntil: Long?,
-    val emergencyUntil: Long?,
+    val dayKey: Int = 0,
+    val usedTodaySec: Int = 0,
+    val sessionEndsAt: Long? = null,
+    val sessionLockMin: Int? = null,
+    val lockedUntil: Long? = null,
+    val emergencyUntil: Long? = null,
 )
 
 enum class Reason { COOLDOWN, DAILY_CAP }

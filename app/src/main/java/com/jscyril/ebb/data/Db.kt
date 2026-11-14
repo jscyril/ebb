@@ -39,9 +39,9 @@ abstract class UsageDao {
 
     /** Event insert and all aggregate bumps commit together. */
     @Transaction
-    open suspend fun log(e: UsageEvent, bumps: List<Triple<Int, Long, Pair<Int, Int>>>) {
+    open suspend fun log(e: UsageEvent, bumps: List<Bump>) {
         insert(e)
-        for ((day, s, ob) in bumps) { ensureRow(day, e.pkg); bump(day, e.pkg, s, ob.first, ob.second) }
+        for (b in bumps) { ensureRow(b.dayKey, e.pkg); bump(b.dayKey, e.pkg, b.seconds, b.opens, b.blocked) }
     }
 
     @Query("SELECT dayKey, SUM(seconds) AS seconds, SUM(opens) AS opens, SUM(blocked) AS blocked FROM day_aggregate WHERE dayKey >= :from GROUP BY dayKey")

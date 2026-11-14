@@ -1,12 +1,16 @@
 package com.jscyril.ebb.guard
 
 import com.jscyril.ebb.engine.AppRule
+import com.jscyril.ebb.engine.Defaults
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Rules(val apps: Map<String, AppRule>, val passesPerMonth: Int)
+data class Rules(
+    val apps: Map<String, AppRule> = emptyMap(),
+    val passesPerMonth: Int = Defaults.PASSES_PER_MONTH,
+)
 @Serializable
-data class Pending(val newRules: Rules, val effectiveAt: Long)
+data class Pending(val newRules: Rules = Rules(), val effectiveAt: Long = Long.MAX_VALUE)
 
 object ChangeQueue {
     private const val COOLDOWN_MS = 24 * 3_600_000L

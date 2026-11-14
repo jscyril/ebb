@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 class EbbApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        Repo.get(this).clock = { TrustedNow.peek(this) }
         CoroutineScope(Dispatchers.IO).launch { runCatching { Repo.get(this@EbbApp).pruneOldEvents(TrustedNow.peek(this@EbbApp)) } }
         WidgetRefresher.scheduleNext(this)
     }

@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import java.time.Duration
-import java.time.ZonedDateTime
+import java.time.Instant
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -141,10 +141,13 @@ class Repo private constructor(ctx: Context) {
     }
     suspend fun logForeground(pkg: String, start: Long, end: Long) = logSession(pkg, start, end, 0, Kind.FOREGROUND)
 
+    /** Trusted now for [dayKeyTicker]; set by EbbApp (TrustedNow lives in service/, which depends on data/). */
+    @Volatile var clock: suspend () -> Long = { System.currentTimeMillis() }
+
     /** Emits the current local dayKey, then again at each local midnight. */
     fun dayKeyTicker(z: ZoneId): Flow<Int> = flow {
         while (true) {
-            val now = ZonedDateTime.now(z)
+            val now = Instant.ofEpochMilli(clock()).atZone(z)
             emit(dayKeyOf(now.toLocalDate()))
             delay(Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(z)).toMillis().coerceAtLeast(1))
         }

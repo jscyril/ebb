@@ -26,3 +26,7 @@ fun sortRows(rows: List<WidgetRow>): List<WidgetRow> = rows.sortedWith(compareBy
 
 /** Arc sweep for a progress [fraction], clamped to 0..360 (NaN reads as empty). */
 fun sweepDegrees(fraction: Float): Float = if (fraction.isNaN()) 0f else 360f * fraction.coerceIn(0f, 1f)
+
+/** Trailing throttle: 0 = run now; otherwise wait until [window] ms after the last run at [lastAt] (null = never ran). */
+fun throttleDelay(lastAt: Long?, now: Long, window: Long): Long =
+    if (lastAt == null || now - lastAt >= window) 0 else lastAt + window - now

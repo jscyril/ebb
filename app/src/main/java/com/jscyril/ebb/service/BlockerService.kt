@@ -93,7 +93,6 @@ class BlockerService : AccessibilityService() {
     private var launchingPkg: String? = null // FULL overlays for it are held back until the Activity is up
     private var launchingUntil = 0L // uptime
     private var widgetsDirty = false // a widget-visible write happened in this serial block
-    private var widgetFgAt = Long.MIN_VALUE / 2 // uptime of the last usage-driven widget refresh
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -469,9 +468,7 @@ class BlockerService : AccessibilityService() {
         val sec = ((iv.end - iv.start + 500) / 1000).toInt()
         // end - 1: a flush at the midnight timer belongs to the day that just ended
         repo.updateState(iv.pkg) { SessionEngine.addForeground(it, sec, iv.end - 1, zone) }
-        // Widgets show minutes, not seconds: refresh for usage at most once a minute.
-        val up = SystemClock.uptimeMillis()
-        if (up - widgetFgAt >= 60_000) { widgetFgAt = up; widgetsDirty = true }
+        WidgetRefresher.requestUsageUpdate(this) // at most once a minute, trailing so the last minutes show
     }
 
     /** [sticky] (Block/TimesUp) survives the Home it triggers when full screen. Any overlay holds audio focus to pause a playing video. */

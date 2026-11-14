@@ -131,6 +131,7 @@ class TodayWidgetReceiver : GlanceAppWidgetReceiver() {
     /** Also on first placement: start the refresh alarm, which stays off while no widget exists. */
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        WidgetRefresher.widgetsChanged()
         WidgetRefresher.scheduleNext(context)
     }
 }

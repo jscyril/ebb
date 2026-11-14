@@ -47,4 +47,8 @@ class WidgetLogicTest {
         assertEquals(360f, sweepDegrees(3f), 0f)
         assertEquals(0f, sweepDegrees(Float.NaN), 0f)
     }
+
+    @Test fun throttleFirstCallRunsNow() = assertEquals(0L, throttleDelay(null, 5_000, 60_000))
+    @Test fun throttleAfterWindowRunsNow() = assertEquals(0L, throttleDelay(1_000, 61_000, 60_000))
+    @Test fun throttleInsideWindowWaitsForItsEnd() = assertEquals(45_000L, throttleDelay(1_000, 16_000, 60_000))
 }

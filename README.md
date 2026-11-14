@@ -31,7 +31,7 @@ Hard, not impossible.
 - **Device Admin** blocks plain uninstall.
 - **24 h wait on loosening.** Tightening a rule is instant. Longer sessions, shorter lockouts, a higher cap or removing an app wait 24 h, and can be cancelled while pending.
 - **Pledge.** Choose 7, 30 or 90 days at setup. A 24-character passcode is shown once (give it to someone else) and only a salted PBKDF2 hash is stored. During a pledge limits can only get stricter, protection can't be disabled, and the passcode is the only way out early. There is no recovery path.
-- **After a pledge**, turning protection off takes a 48 h wait plus a typed phrase. (Ending a pledge early with the passcode does not skip this wait.)
+- **After a pledge**, turning protection off takes a 48 h wait plus a typed phrase in the 24 h after it; an unused request then expires and must be filed again. (Ending a pledge early with the passcode does not skip this wait.)
 - **Trusted clock.** Time is anchored to elapsed realtime, so changing the system clock never shortens a lockout, cooldown or pledge.
 
 **Known holes:** safe mode, `adb uninstall`, factory reset, and changing the clock while Ebb's service is off, then rebooting (a change made while it runs is undone after a reboot). The Settings guard matches English text (class names and the app name still work in other languages). Device Owner mode (set up via adb on a freshly reset phone) could close most of these and is a possible future hardening.
@@ -120,7 +120,7 @@ Overlays, the guard and widgets can't be unit-tested; check on a device.
 - [ ] Onboarding: Continue stays disabled until apps, tiers, Admin and the service are set. State updates live after returning from Settings. Picked apps survive a process kill.
 - [ ] Pledge passcode shows in groups of 4, lock-in needs the checkbox. A wrong code gives a 30 s lockout; the right code ends the pledge.
 - [ ] Tightening a rule saves immediately. Loosening shows a pending card with a 24 h countdown and can be cancelled. During a pledge loosening is refused.
-- [ ] Turn protection off: 48 h countdown, cancellable; after it, the phrase is required, then Admin deactivates.
+- [ ] Turn protection off: 48 h countdown, cancellable; after it, the phrase is required, then Admin deactivates. After 72 h unused, the request shows as expired.
 
 **Dashboard**
 - [ ] Ring sweeps on first open; the tiles are equal height at large font scales.

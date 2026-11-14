@@ -352,6 +352,7 @@ private fun ProtectionSection(vm: SettingsVm, pledgeActive: Boolean) {
         !protectionOn -> 0
         pledgeActive -> 1
         r == null || (p != null && r < p.endsAt) -> 2 // a request filed during a pledge never counts
+        DisableRequest.isExpired(r, t) -> 5
         !DisableRequest.canDisable(p, r, t) -> 3
         else -> 4
     }
@@ -380,10 +381,15 @@ private fun ProtectionSection(vm: SettingsVm, pledgeActive: Boolean) {
                     OutlinedButton(vm::requestDisable, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.prot_request)) }
                 }
                 3 -> {
-                    val at = (r ?: t) + 48 * 3_600_000L
+                    val at = (r ?: t) + DisableRequest.WAIT_MS
                     Text(stringResource(R.string.prot_waiting, durationText(at - t)), style = MaterialTheme.typography.titleMedium)
                     Body(stringResource(R.string.prot_waiting_at, dayAndTime(at)))
                     TextButton(vm::cancelDisable, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.prot_cancel_request)) }
+                }
+                5 -> {
+                    Text(stringResource(R.string.prot_expired), style = MaterialTheme.typography.titleMedium)
+                    Body(stringResource(R.string.prot_expired_body))
+                    OutlinedButton(vm::requestDisable, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.prot_request_again)) }
                 }
                 else -> {
                     var phrase by remember { mutableStateOf("") }

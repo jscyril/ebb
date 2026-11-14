@@ -15,6 +15,14 @@ class DisableRequestTest {
     @Test fun true48h() = assertTrue(DisableRequest.canDisable(ended, now - 48 * h, now))
     @Test fun trueNoPledge() = assertTrue(DisableRequest.canDisable(null, now - 48 * h, now))
 
+    @Test fun true72h() = assertTrue(DisableRequest.canDisable(ended, now - 72 * h, now))
+    @Test fun expiredJustAfter72h() {
+        assertTrue(DisableRequest.isExpired(now - 72 * h - 1, now))
+        assertFalse(DisableRequest.isExpired(now - 72 * h, now))
+        assertFalse(DisableRequest.isExpired(null, now))
+        assertFalse(DisableRequest.canDisable(ended, now - 72 * h - 1, now))
+    }
+
     @Test fun requestFiledDuringPledgeNeverCounts() {
         val p = PledgeRecord(100 * h, ByteArray(1), ByteArray(1))
         assertFalse(DisableRequest.canDisable(p, 1 * h, 100 * h + 48 * h))

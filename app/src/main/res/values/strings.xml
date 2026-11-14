@@ -225,11 +225,14 @@
     <string name="prot_turn_on">Turn protection back on</string>
     <string name="prot_pledge_blocks">Your pledge is running, so protection can\'t be turned off until it ends.</string>
     <string name="prot_turn_off">Turn off protection</string>
-    <string name="prot_explain">Turning Ebb off takes 48 hours. Start the wait now; if you still want out when it ends, you\'ll type a sentence to confirm.</string>
+    <string name="prot_explain">Turning Ebb off takes 48 hours. Start the wait now; if you still want out when it ends, you\'ll have 24 hours to type a sentence to confirm.</string>
     <string name="prot_request">Start the 48-hour wait</string>
     <string name="prot_waiting">You can turn Ebb off in %1$s</string>
     <string name="prot_waiting_at">At %1$s. Changed your mind? Cancel any time.</string>
     <string name="prot_cancel_request">Cancel request</string>
+    <string name="prot_expired">Your request expired</string>
+    <string name="prot_expired_body">The 24 hours to turn Ebb off have passed. To turn it off now, start a new 48-hour wait.</string>
+    <string name="prot_request_again">Start a new 48-hour wait</string>
     <string name="prot_type">The wait is over. To turn Ebb off, type: “%1$s”</string>
     <string name="set_about">About</string>
     <string name="about_version">Version %1$s</string>

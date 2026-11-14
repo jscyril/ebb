@@ -15,7 +15,7 @@ jobs:
       # Preinstalled SDK may lack compileSdk 36; no-op if present.
       - name: Ensure Android platform 36
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" || true
-      - run: ./gradlew test assembleDebug lint
+      - run: ./gradlew test assembleDebug assembleRelease lint
       - uses: actions/upload-artifact@v4
         with:
           name: ebb-debug-apk

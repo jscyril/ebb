@@ -70,9 +70,9 @@ internal fun tickingNow(start: Long): State<Long> {
     }
 }
 
-/** A round progress ring; [progress] 0..1 fills clockwise from the top. */
+/** A round progress ring; [progress] 0..1 fills clockwise from the top. Read only while drawing, so it never recomposes. */
 @Composable
-internal fun Ring(progress: Float, modifier: Modifier = Modifier, stroke: Dp = 10.dp, content: @Composable BoxScope.() -> Unit = {}) {
+internal fun Ring(progress: () -> Float, modifier: Modifier = Modifier, stroke: Dp = 10.dp, content: @Composable BoxScope.() -> Unit = {}) {
     val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     val fill = MaterialTheme.colorScheme.primary
     Box(modifier, contentAlignment = Alignment.Center) {
@@ -81,7 +81,7 @@ internal fun Ring(progress: Float, modifier: Modifier = Modifier, stroke: Dp = 1
             val tl = Offset(w / 2, w / 2)
             val sz = Size(size.width - w, size.height - w)
             drawArc(track, 0f, 360f, false, tl, sz, style = Stroke(w))
-            val p = progress.coerceIn(0f, 1f)
+            val p = progress().coerceIn(0f, 1f)
             if (p > 0f) drawArc(fill, -90f, 360f * p, false, tl, sz, style = Stroke(w, cap = StrokeCap.Round))
         }
         content()

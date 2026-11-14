@@ -9,8 +9,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,6 +29,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -48,26 +48,31 @@ import com.jscyril.ebb.engine.Reason
 import com.jscyril.ebb.ui.theme.BigButton
 import com.jscyril.ebb.ui.theme.EbbMotion
 import com.jscyril.ebb.ui.theme.rememberReducedMotion
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlin.math.PI
+import kotlin.random.Random
 import kotlin.math.sin
 
 /**
  * The app is locked until [until]. [now] is trusted time at show; [lockedFrom] is when the lock began
- * (drives the ring). Calls [onGoHome] once the lock runs out, so the service re-gates.
+ * (drives the ring). Calls [onUnlocked] once the lock runs out, so the service re-gates.
+ * Only the countdown text and the ring follow the clock; the rest of the screen does not recompose per second.
  */
 @Composable
 fun BlockScreen(
     appName: String, appIcon: ImageBitmap?, until: Long, reason: Reason, passesLeft: Int,
-    onEmergency: () -> Unit, onGoHome: () -> Unit, now: Long, lockedFrom: Long,
+    onEmergency: () -> Unit, onGoHome: () -> Unit, onUnlocked: () -> Unit, now: Long, lockedFrom: Long,
 ) {
-    val clock by tickingNow(now)
-    val left = until - clock
-    LaunchedEffect(left <= 0) { if (left <= 0) onGoHome() }
+    val clock = tickingNow(now)
+    val unlockedCb by rememberUpdatedState(onUnlocked)
+    LaunchedEffect(until) { snapshotFlow { clock.value >= until }.first { it }; unlockedCb() }
     val unlockAt = timeOfDay(until)
     Overlay(compact = { CompactOverlay(appName, appIcon, stringResource(R.string.block_compact, unlockAt), onGoHome) }) {
         val reduced = rememberReducedMotion()
         val shown = remember { MutableTransitionState(false) }.apply { targetState = true }
-        val message = stringArrayResource(R.array.block_messages).let { remember(it) { it.random() } }
+        val messages = stringArrayResource(R.array.block_messages)
+        val messageAt = remember { Random.nextInt(messages.size) } // once per show
         val ringSize = min(260.dp, min(maxWidth * 0.68f, maxHeight * 0.34f))
 
         FullBleed {
@@ -82,9 +87,9 @@ fun BlockScreen(
                     Text(appName, Modifier.padding(top = 12.dp), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.weight(0.4f))
                     val desc = stringResource(R.string.block_ring_desc, unlockAt)
-                    LockRing(ringProgress(clock, lockedFrom, until), reduced, Modifier.size(ringSize).clearAndSetSemantics { contentDescription = desc }) {
+                    LockRing(clock, lockedFrom, until, reduced, Modifier.size(ringSize).clearAndSetSemantics { contentDescription = desc }) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(formatRemaining(left), style = MaterialTheme.typography.displayMedium)
+                            Countdown(clock, until)
                             Text(
                                 stringResource(R.string.block_until, unlockAt),
                                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -97,7 +102,7 @@ fun BlockScreen(
                         style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
                     )
                     Text(
-                        message, Modifier.padding(top = 8.dp).widthIn(max = 360.dp),
+                        messages[messageAt], Modifier.padding(top = 8.dp).widthIn(max = 360.dp),
                         style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.weight(1f))
@@ -114,12 +119,20 @@ fun BlockScreen(
     }
 }
 
-/** Ring that drains in from empty on show, then follows [progress] with a slow spring. */
+/** The only text that recomposes each second. */
 @Composable
-private fun LockRing(progress: Float, reduced: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
-    val p = remember { Animatable(if (reduced) progress else 0f) }
-    LaunchedEffect(progress) { if (reduced) p.snapTo(progress) else p.animateTo(progress, EbbMotion.Slow()) }
-    Ring(p.value, modifier, stroke = 8.dp) { content() }
+private fun Countdown(clock: State<Long>, until: Long) =
+    Text(formatRemaining(until - clock.value), style = MaterialTheme.typography.displayMedium)
+
+/** Ring that fills in from empty on show, then follows the clock with a slow spring; it only redraws. */
+@Composable
+private fun LockRing(clock: State<Long>, from: Long, until: Long, reduced: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
+    val p = remember { Animatable(if (reduced) ringProgress(clock.value, from, until) else 0f) }
+    LaunchedEffect(from, until) {
+        snapshotFlow { ringProgress(clock.value, from, until) }
+            .collectLatest { if (reduced) p.snapTo(it) else p.animateTo(it, EbbMotion.Slow()) }
+    }
+    Ring({ p.value }, modifier, stroke = 8.dp) { content() }
 }
 
 /** Three slow layered sine waves along the bottom. One infinite transition; static when [animate] is false. */

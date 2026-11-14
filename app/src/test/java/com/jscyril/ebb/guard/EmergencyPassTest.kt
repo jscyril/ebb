@@ -2,7 +2,12 @@ package com.jscyril.ebb.guard
 
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import com.jscyril.ebb.engine.Decision
+import com.jscyril.ebb.engine.Reason
+import com.jscyril.ebb.engine.Tier
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EmergencyPassTest {
@@ -16,4 +21,12 @@ class EmergencyPassTest {
 
     @Test fun neverNegative() =
         assertEquals(0, EmergencyPass.remaining(listOf(ms(2026, 11, 1), ms(2026, 11, 2), ms(2026, 11, 3)), 2, ms(2026, 11, 14), z))
+
+    @Test fun mayUseOnlyWhileBlockedWithPassesLeft() {
+        assertTrue(EmergencyPass.mayUse(Decision.Blocked(1, Reason.COOLDOWN), 1))
+        assertTrue(EmergencyPass.mayUse(Decision.Blocked(1, Reason.DAILY_CAP), 2))
+        assertFalse(EmergencyPass.mayUse(Decision.Blocked(1, Reason.COOLDOWN), 0))
+        assertFalse(EmergencyPass.mayUse(Decision.Prompt(listOf(Tier(5, 60))), 2)) // lock ran out meanwhile
+        assertFalse(EmergencyPass.mayUse(Decision.Allow(1), 2))
+    }
 }

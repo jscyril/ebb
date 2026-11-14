@@ -36,7 +36,7 @@ import com.jscyril.ebb.guard.EmergencyPass
 import com.jscyril.ebb.guard.GuardMatcher
 import com.jscyril.ebb.guard.Pledge
 import com.jscyril.ebb.ui.overlay.BlockScreen
-import com.jscyril.ebb.ui.overlay.EmergencyScreen
+import com.jscyril.ebb.ui.overlay.EmergencyActivity
 import com.jscyril.ebb.ui.overlay.PromptScreen
 import com.jscyril.ebb.ui.overlay.TimesUpScreen
 import com.jscyril.ebb.ui.theme.EbbThemeFromRepo
@@ -83,7 +83,6 @@ class BlockerService : AccessibilityService() {
     private var guardPkg: String? = null // last guard-package window state, so fragment-nav scans keep its class
     private var guardCls: String? = null
     private var lastToast = 0L
-    private var emergencyPkg: String? = null // the emergency flow is showing for this package
     private val icons = LruCache<String, ImageBitmap>(8)
 
     private val receiver = object : BroadcastReceiver() {
@@ -97,6 +96,7 @@ class BlockerService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        instance = this
         repo = Repo.get(this)
         clock = TrustedNow(this, repo, scope)
         overlay = OverlayHost(this, ::goHome)
@@ -276,20 +276,18 @@ class BlockerService : AccessibilityService() {
                     repo.logSession(pkg, now, now, 0, Kind.BLOCKED_ATTEMPT)
                     performGlobalAction(GLOBAL_ACTION_HOME) // background it so audio/video usually stop
                 }
-                if (emergencyPkg == pkg && overlay?.isShowing == true) return // mid emergency flow: keep it
                 showBlock(pkg, rule, d, now, bounds)
             }
         }
     }
 
     private suspend fun showBlock(pkg: String, rule: AppRule, d: Decision.Blocked, now: Long, bounds: Rect?) {
-        emergencyPkg = null
         val name = label(pkg)
         val icon = icon(pkg)
         val passes = passesLeft(now)
         val from = lockStart(rule, d, now)
         show(bounds, sticky = true) {
-            BlockScreen(name, icon, d.until, d.reason, passes, onEmergency = { serial { openEmergency(pkg) } }, onGoHome = ::goHome, now = now, lockedFrom = from)
+            BlockScreen(name, icon, d.until, d.reason, passes, onEmergency = { serial { openEmergency(pkg) } }, onGoHome = ::goHome, onUnlocked = ::unlocked, now = now, lockedFrom = from)
         }
     }
 
@@ -305,40 +303,31 @@ class BlockerService : AccessibilityService() {
     private suspend fun passesLeft(now: Long) =
         EmergencyPass.remaining(repo.emergencyUses(), repo.rules().passesPerMonth, now, zone)
 
-    /** Block's emergency action: swaps in the friction flow (full screen, so the keyboard works). */
+    /** Block's emergency action: leaves the overlay for [EmergencyActivity], a normal window where the keyboard works. */
     private suspend fun openEmergency(pkg: String) {
-        if (overlay?.isShowing != true || emergencyPkg != null) return
         val now = clock.now()
+        val rule = activeRules(now)[pkg] ?: return
         val passes = passesLeft(now)
-        if (passes <= 0) return
-        emergencyPkg = pkg
-        val name = label(pkg)
-        show(null, sticky = true) {
-            EmergencyScreen(name, passes, onConfirm = { serial { confirmEmergency(pkg) } }, onCancel = { serial { regate(pkg) } })
-        }
-    }
-
-    private suspend fun confirmEmergency(pkg: String) {
-        if (emergencyPkg != pkg) return // flow already left, or a double tap
-        val now = clock.now()
-        if (activeRules(now)[pkg] == null) { dismiss(); return }
-        if (passesLeft(now) <= 0) { regate(pkg); return }
-        repo.addEmergencyUse(now)
-        repo.logSession(pkg, now, now + SessionEngine.EMERGENCY_MIN * 60_000L, SessionEngine.EMERGENCY_MIN, Kind.EMERGENCY)
-        repo.updateState(pkg) { SessionEngine.startEmergency(it, now) }
+        if (!EmergencyPass.mayUse(SessionEngine.decide(rule, repo.state(pkg), now, zone), passes)) return
+        cancelTimer()
         dismiss()
-        // Still visible (PiP/split): gate now; it is Allow, so it starts the interval and schedules the timer.
-        // Otherwise Block sat over the launcher: open the app, and its window event does the same.
-        if (fgPkg == pkg) regate(pkg)
-        else runCatching { packageManager.getLaunchIntentForPackage(pkg)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let(::startActivity) }
+        // Our own package's events are ignored, so close tracking here as if the user left.
+        record(tracker.onForeground(null, false, now))
+        fgPkg = null
+        startActivity(EmergencyActivity.intent(this, pkg, label(pkg), passes))
     }
 
-    /** Leaves the emergency flow and shows whatever the engine now says for [pkg]. */
-    private suspend fun regate(pkg: String) {
-        emergencyPkg = null
+    /** Called by [EmergencyActivity] after the wait and the typed phrase. */
+    fun confirmEmergency(pkg: String) = serial {
         val now = clock.now()
-        val rule = activeRules(now)[pkg] ?: run { dismiss(); return }
-        gate(pkg, rule, now, isNew = false, bounds = null)
+        val rule = activeRules(now)[pkg] ?: return@serial
+        if (EmergencyPass.mayUse(SessionEngine.decide(rule, repo.state(pkg), now, zone), passesLeft(now))) {
+            repo.addEmergencyUse(now)
+            repo.logSession(pkg, now, now + SessionEngine.EMERGENCY_MIN * 60_000L, SessionEngine.EMERGENCY_MIN, Kind.EMERGENCY)
+            repo.updateState(pkg) { SessionEngine.startEmergency(it, now) }
+        }
+        // Either way open the app: its window event gates it (Allow now, or Prompt/Block if no pass was spent).
+        runCatching { packageManager.getLaunchIntentForPackage(pkg)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let(::startActivity) }
     }
 
     private suspend fun pick(pkg: String, tier: Tier) {
@@ -433,14 +422,19 @@ class BlockerService : AccessibilityService() {
         audioFocus(true)
     }
 
-    /** Also resets the emergency flow: leaving the overlay starts it over. */
-    private fun dismiss() { overlay?.dismiss(); sticky = false; mode = null; emergencyPkg = null; audioFocus(false) }
+    private fun dismiss() { overlay?.dismiss(); sticky = false; mode = null; audioFocus(false) }
 
     private fun audioFocus(hold: Boolean) {
         if (hold == holdingFocus) return
         val am = getSystemService(AudioManager::class.java) ?: return
         holdingFocus = hold
         if (hold) am.requestAudioFocus(focus) else am.abandonAudioFocusRequest(focus)
+    }
+
+    /** Block's lock ran out: drop it and re-check, so the user can carry on in the now-unlocked app. */
+    private fun unlocked() {
+        dismiss()
+        scheduleRecheck(0)
     }
 
     /** Go home button, Back key and TimesUp; re-checks after, so a PiP that survives Home is covered again. */
@@ -462,6 +456,7 @@ class BlockerService : AccessibilityService() {
     private fun teardown() {
         if (torn) return
         torn = true
+        if (instance === this) instance = null
         runCatching { unregisterReceiver(receiver) }
         dismiss(); overlay = null
         val iv = if (ready) tracker.onScreenOff(clock.now()) else null
@@ -469,10 +464,14 @@ class BlockerService : AccessibilityService() {
         if (iv != null) CoroutineScope(Dispatchers.IO).launch { runCatching { record(iv) } }
     }
 
-    private companion object {
-        const val TAG = "EbbBlocker"
-        const val SYSTEM_UI = "com.android.systemui"
-        const val GUARD_NODES = 250
-        const val ICON_PX = 96
+    companion object {
+        /** The connected service, for [EmergencyActivity]; null while protection isn't running. */
+        @Volatile var instance: BlockerService? = null
+            private set
+
+        private const val TAG = "EbbBlocker"
+        private const val SYSTEM_UI = "com.android.systemui"
+        private const val GUARD_NODES = 250
+        private const val ICON_PX = 96
     }
 }

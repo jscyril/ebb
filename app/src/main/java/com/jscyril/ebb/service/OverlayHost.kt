@@ -75,9 +75,7 @@ class OverlayHost(private val service: AccessibilityService, private val onBack:
         )
         if (b != null) { lp.gravity = Gravity.TOP or Gravity.START; lp.x = b.left; lp.y = b.top }
         else {
-            // Edge to edge (content insets itself with safeDrawing, which includes the IME) and keyboard-friendly.
-            @Suppress("DEPRECATION") // still what API 29 uses to make room for the keyboard
-            lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            // Edge to edge: content insets itself with WindowInsets.safeDrawing.
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             if (Build.VERSION.SDK_INT >= 30) lp.fitInsetsTypes = 0
         }

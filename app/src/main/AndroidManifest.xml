@@ -24,6 +24,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Emergency pass flow; own task so it never mixes with the app's screens or recents. -->
+        <activity
+            android:name=".ui.overlay.EmergencyActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|density"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity="com.jscyril.ebb.emergency"
+            android:theme="@style/Theme.Ebb"
+            android:windowSoftInputMode="adjustResize" />
         <service
             android:name=".service.BlockerService"
             android:exported="true"

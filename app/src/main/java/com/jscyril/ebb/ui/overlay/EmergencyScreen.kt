@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jscyril.ebb.R
+import com.jscyril.ebb.engine.SessionEngine
 import com.jscyril.ebb.ui.theme.BigButton
 import com.jscyril.ebb.ui.theme.EbbMotion
 import com.jscyril.ebb.ui.theme.rememberReducedMotion
@@ -58,9 +60,8 @@ private const val WAIT_SEC = 60
 
 /** Deliberate friction: a 60 s wait that cannot be skipped, then a typed phrase. Cancel any time. */
 @Composable
-fun EmergencyScreen(appName: String, passesLeft: Int, onConfirm: () -> Unit, onCancel: () -> Unit) = Overlay(
-    compact = { CompactOverlay(appName, null, stringResource(R.string.emergency_compact, appName), onCancel) },
-) {
+fun EmergencyScreen(appName: String, passesLeft: Int, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    // No compact variant: the keyboard shrinks the window, and a size switch would drop the wait/phrase state.
     val reduced = rememberReducedMotion()
     var left by remember { mutableIntStateOf(WAIT_SEC) }
     LaunchedEffect(Unit) {
@@ -72,7 +73,7 @@ fun EmergencyScreen(appName: String, passesLeft: Int, onConfirm: () -> Unit, onC
         }
     }
     Box(
-        Modifier.fillMaxSize().then(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)),
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).windowInsetsPadding(WindowInsets.safeDrawing),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -102,7 +103,7 @@ private fun Wait(appName: String, passesLeft: Int, left: Int, reduced: Boolean) 
     )
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         val desc = pluralStringResource(R.plurals.emergency_wait_desc, left, left)
-        Ring(p, Modifier.size(200.dp).clearAndSetSemantics { contentDescription = desc }, stroke = 8.dp) {
+        Ring({ p }, Modifier.size(200.dp).clearAndSetSemantics { contentDescription = desc }, stroke = 8.dp) {
             Text(formatRemaining(left * 1_000L), style = MaterialTheme.typography.displayMedium)
         }
         Text(
@@ -124,7 +125,7 @@ private fun Phrase(appName: String, onConfirm: () -> Unit) {
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            stringResource(R.string.emergency_type, appName),
+            pluralStringResource(R.plurals.emergency_type, SessionEngine.EMERGENCY_MIN, appName, SessionEngine.EMERGENCY_MIN),
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
         )
         Text(stringResource(R.string.emergency_phrase, EMERGENCY_PHRASE), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
@@ -137,6 +138,6 @@ private fun Phrase(appName: String, onConfirm: () -> Unit) {
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, autoCorrectEnabled = false, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (ok) onConfirm() }),
         )
-        BigButton(stringResource(R.string.emergency_confirm), onConfirm, Modifier.fillMaxWidth(), enabled = ok)
+        BigButton(pluralStringResource(R.plurals.emergency_confirm, SessionEngine.EMERGENCY_MIN, SessionEngine.EMERGENCY_MIN), onConfirm, Modifier.fillMaxWidth(), enabled = ok)
     }
 }

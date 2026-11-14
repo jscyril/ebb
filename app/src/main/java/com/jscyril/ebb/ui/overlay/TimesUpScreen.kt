@@ -63,7 +63,7 @@ fun TimesUpScreen(appName: String, appIcon: ImageBitmap?, nextUnlock: Long, onDo
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
             ) {
-                Ring(ring.value, Modifier.size(168.dp), stroke = 10.dp) { AppIcon(appName, appIcon, 64.dp, locked) }
+                Ring({ ring.value }, Modifier.size(168.dp), stroke = 10.dp) { AppIcon(appName, appIcon, 64.dp, locked) }
                 AnimatedVisibility(text, enter = if (reduced) EbbMotion.enter(true) else fadeIn(EbbMotion.Standard()) + slideInVertically(EbbMotion.Standard()) { it / 3 }) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.times_up), style = MaterialTheme.typography.displaySmall)

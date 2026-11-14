@@ -3,7 +3,6 @@ package com.jscyril.ebb.ui.overlay
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -62,11 +62,12 @@ fun PromptScreen(
 ) {
     val reduced = rememberReducedMotion()
     val shown = remember { MutableTransitionState(false) }.apply { targetState = true }
-    val scrim by animateFloatAsState(if (shown.targetState) 0.6f else 0f, tween(if (reduced) 120 else 320), label = "scrim")
+    val scrim = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { scrim.animateTo(0.6f, tween(if (reduced) 120 else 320)) }
     var selected by remember(options) { mutableStateOf<Tier?>(null) }
     val cols = if (maxWidth >= 440.dp) 2 else 1
 
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = scrim)))
+    Box(Modifier.fillMaxSize().drawBehind { drawRect(Color.Black.copy(alpha = scrim.value)) })
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(shown, enter = EbbMotion.enter(reduced), exit = EbbMotion.exit(reduced)) {
             Surface(

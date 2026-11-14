@@ -44,12 +44,18 @@
         <item quantity="one">Please wait, %d second left</item>
         <item quantity="other">Please wait, %d seconds left</item>
     </plurals>
-    <string name="emergency_type">Type this to open %1$s for 10 minutes</string>
+    <plurals name="emergency_type">
+        <item quantity="one">Type this to open %1$s for %2$d minute</item>
+        <item quantity="other">Type this to open %1$s for %2$d minutes</item>
+    </plurals>
     <string name="emergency_phrase">“%1$s”</string>
     <string name="emergency_field">Phrase</string>
-    <string name="emergency_confirm">Open for 10 minutes</string>
+    <plurals name="emergency_confirm">
+        <item quantity="one">Open for %d minute</item>
+        <item quantity="other">Open for %d minutes</item>
+    </plurals>
     <string name="emergency_cancel">Cancel</string>
-    <string name="emergency_compact">Open %1$s full screen for emergency access</string>
+    <string name="emergency_no_service">Protection service isn\'t running. Turn Ebb on in Accessibility settings.</string>
     <string name="guard_toast">Ebb protection is on</string>
     <string name="admin_explanation">Turning this on stops Ebb from being uninstalled on impulse. Ebb asks for no device admin powers: it cannot lock, wipe or watch your phone. You can turn it off later from inside Ebb.</string>
     <string name="admin_disable_warning">Ebb protection is on. Turn it off from inside Ebb instead.</string>

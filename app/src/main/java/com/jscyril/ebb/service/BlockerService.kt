@@ -161,7 +161,7 @@ class BlockerService : AccessibilityService() {
         val texts = texts(root)
         val cls = guardCls.takeIf { guardPkg == pkg }
         serial {
-            if (!repo.protectionEnabledFlow.first()) return@serial
+            if (!guarding()) return@serial
             val pledge = Pledge.isActive(repo.pledge(), clock.now())
             if (!GuardMatcher.shouldEject(pkg, cls, texts, getString(R.string.app_name), pledge)) return@serial
             // Our own activation screen (Admin.enableIntent) must stay usable until the admin is on.
@@ -406,13 +406,16 @@ class BlockerService : AccessibilityService() {
         record(tracker.onScreenOff(clock.now()))
     }
 
-    /** Watched rules after maturing pending changes; empty while protection is off. */
+    /** Nothing is guarded or blocked during onboarding or after the user turned protection off. */
+    private suspend fun guarding() = repo.onboardingDoneFlow.first() && repo.protectionEnabledFlow.first()
+
+    /** Watched rules after maturing pending changes; empty while not [guarding]. */
     private suspend fun activeRules(now: Long): Map<String, AppRule> {
         val rules = repo.rules()
         val pending = repo.pending()
         val (matured, left) = ChangeQueue.mature(rules, pending, now)
         if (pending != null && left == null) { repo.saveRules(matured); repo.savePending(null) }
-        return if (repo.protectionEnabledFlow.first()) matured.apps else emptyMap()
+        return if (guarding()) matured.apps else emptyMap()
     }
 
     /** Package and screen bounds of each visible application window. */

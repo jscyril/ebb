@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Ebb" parent="android:Theme.Material.Light.NoActionBar">
+    <!-- DayNight: the window background comes from values-night/colors.xml in dark mode, so there is no white flash. -->
+    <style name="Theme.Ebb" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
         <item name="android:windowBackground">@color/window_bg</item>
     </style>
 

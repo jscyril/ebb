@@ -86,7 +86,8 @@ class Repo private constructor(ctx: Context) {
     }
 
     // ---- pledge / pending / disable request
-    suspend fun pledge(): PledgeRecord? = ds.data.first().let { p -> p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) } }?.toRecord()
+    val pledgeFlow: Flow<PledgeRecord?> = ds.data.map { p -> p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) }?.toRecord() }
+    suspend fun pledge(): PledgeRecord? = pledgeFlow.first()
     suspend fun savePledge(r: PledgeRecord?) =
         put(Keys.PLEDGE, r) { json.encodeToString(PledgeDto.serializer(), PledgeDto.of(it)) }
 
@@ -94,11 +95,13 @@ class Repo private constructor(ctx: Context) {
     suspend fun pending() = pendingFlow.first()
     suspend fun savePending(p: Pending?) = put(Keys.PENDING, p) { json.encodeToString(Pending.serializer(), it) }
 
-    suspend fun disableRequestedAt(): Long? = ds.data.first()[Keys.DISABLE_REQ]?.toLongOrNull()
+    val disableRequestedAtFlow: Flow<Long?> = ds.data.map { it[Keys.DISABLE_REQ]?.toLongOrNull() }
+    suspend fun disableRequestedAt(): Long? = disableRequestedAtFlow.first()
     suspend fun saveDisableRequestedAt(t: Long?) = put(Keys.DISABLE_REQ, t) { it.toString() }
 
     // ---- emergency passes
-    suspend fun emergencyUses(): List<Long> = ds.data.first().dec(Keys.EMERGENCY, LONGS_SER, emptyList())
+    val emergencyUsesFlow: Flow<List<Long>> = ds.data.map { it.dec(Keys.EMERGENCY, LONGS_SER, emptyList()) }
+    suspend fun emergencyUses(): List<Long> = emergencyUsesFlow.first()
     suspend fun addEmergencyUse(at: Long) {
         ds.edit { p ->
             val l = p.dec(Keys.EMERGENCY, LONGS_SER, emptyList())

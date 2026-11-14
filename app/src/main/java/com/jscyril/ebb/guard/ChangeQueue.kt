@@ -42,3 +42,12 @@ object ChangeQueue {
         }
     }
 }
+
+enum class MatureAction { Apply, Drop, Keep }
+
+/** What to do with an existing pending change: a pledge drops it (defence in depth), otherwise apply once due. */
+fun matureAction(pledgeActive: Boolean, matured: Boolean): MatureAction = when {
+    pledgeActive -> MatureAction.Drop
+    matured -> MatureAction.Apply
+    else -> MatureAction.Keep
+}

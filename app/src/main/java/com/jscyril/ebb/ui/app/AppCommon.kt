@@ -34,6 +34,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.jscyril.ebb.R
 import com.jscyril.ebb.data.Repo
 import com.jscyril.ebb.guard.ChangeQueue
+import com.jscyril.ebb.guard.MatureAction
 import com.jscyril.ebb.guard.Pledge
 import com.jscyril.ebb.guard.Rules
 import com.jscyril.ebb.service.TrustedNow
@@ -52,15 +53,10 @@ fun trustedTicker(ctx: Context, periodMs: Long = 30_000): Flow<Long> = flow {
 }
 
 /** Applies a matured pending change, if any. The service does the same on each event. */
-suspend fun maturePending(ctx: Context) {
-    val repo = Repo.get(ctx)
-    val p = repo.pending() ?: return
-    val now = TrustedNow.peek(ctx)
-    when (matureAction(Pledge.isActive(repo.pledge(), now), now >= p.effectiveAt)) {
-        MatureAction.Apply -> { repo.saveRules(p.newRules); repo.savePending(null); rulesChanged(ctx) }
-        MatureAction.Drop -> repo.savePending(null)
-        MatureAction.Keep -> {}
-    }
+suspend fun maturePending(ctx: Context): Rules {
+    val (rules, action) = Repo.get(ctx).maturePending(TrustedNow.peek(ctx))
+    if (action == MatureAction.Apply) rulesChanged(ctx)
+    return rules
 }
 
 /** Widgets list the watched apps and their caps: redraw them and re-arm their alarm after a rules write. */
@@ -77,15 +73,18 @@ sealed interface SubmitResult {
  * A tightening save also drops an older pending change, which was computed from the old rules and would undo this one.
  */
 suspend fun submitRules(ctx: Context, proposed: Rules): SubmitResult {
-    maturePending(ctx)
     val repo = Repo.get(ctx)
-    val now = TrustedNow.peek(ctx)
-    val pledge = repo.pledge()
-    val (rules, pending) = ChangeQueue.submit(repo.rules(), proposed, now)
-    if (!allowSubmit(pending != null, Pledge.isActive(pledge, now))) return SubmitResult.RefusedPledge(pledge!!.endsAt)
-    if (pending == null) { repo.saveRules(rules); rulesChanged(ctx) }
-    repo.savePending(pending)
-    return if (pending == null) SubmitResult.Saved else SubmitResult.Queued(pending.effectiveAt)
+    while (true) {
+        val current = maturePending(ctx)
+        val now = TrustedNow.peek(ctx)
+        val pledge = repo.pledge()
+        val (rules, pending) = ChangeQueue.submit(current, proposed, now)
+        if (!allowSubmit(pending != null, Pledge.isActive(pledge, now))) return SubmitResult.RefusedPledge(pledge!!.endsAt)
+        // Compare-and-set: if the service changed the rules meanwhile, decide again against the new ones.
+        if (!repo.saveIfRulesUnchanged(current, rules.takeIf { pending == null }, pending)) continue
+        if (pending == null) rulesChanged(ctx)
+        return if (pending == null) SubmitResult.Saved else SubmitResult.Queued(pending.effectiveAt)
+    }
 }
 
 /** Snackbar text for a [SubmitResult]. */

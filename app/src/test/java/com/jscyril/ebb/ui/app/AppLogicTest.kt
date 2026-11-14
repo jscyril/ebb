@@ -4,6 +4,8 @@ import com.jscyril.ebb.engine.AppRule
 import com.jscyril.ebb.engine.AppState
 import com.jscyril.ebb.engine.SessionEngine
 import com.jscyril.ebb.engine.Tier
+import com.jscyril.ebb.guard.MatureAction
+import com.jscyril.ebb.guard.matureAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

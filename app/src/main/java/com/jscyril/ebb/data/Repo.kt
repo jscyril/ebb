@@ -6,9 +6,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.room.Room
 import com.jscyril.ebb.engine.AppState
 import com.jscyril.ebb.engine.Defaults
+import com.jscyril.ebb.guard.MatureAction
 import com.jscyril.ebb.guard.Pending
+import com.jscyril.ebb.guard.Pledge
 import com.jscyril.ebb.guard.PledgeRecord
 import com.jscyril.ebb.guard.Rules
+import com.jscyril.ebb.guard.matureAction
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -99,6 +102,37 @@ class Repo private constructor(ctx: Context) {
     val pendingFlow: Flow<Pending?> = ds.data.map { it[Keys.PENDING]?.let { _ -> it.dec(Keys.PENDING, Pending.serializer().nullable, null) } }
     suspend fun pending() = pendingFlow.first()
     suspend fun savePending(p: Pending?) = put(Keys.PENDING, p) { json.encodeToString(Pending.serializer(), it) }
+
+    /**
+     * Applies or drops a due pending change ([matureAction]) in one atomic edit, so it can't overwrite a rules write
+     * made in between. Returns the rules afterwards and what was done.
+     */
+    suspend fun maturePending(now: Long): Pair<Rules, MatureAction> {
+        if (pending() == null) return rules() to MatureAction.Keep // fast path: the service calls this on every event
+        var out = EMPTY_RULES
+        var action = MatureAction.Keep
+        ds.edit { p ->
+            out = p.dec(Keys.RULES, Rules.serializer(), EMPTY_RULES)
+            val pend = p[Keys.PENDING]?.let { p.dec(Keys.PENDING, Pending.serializer().nullable, null) } ?: return@edit
+            val pledge = p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) }?.record
+            action = matureAction(Pledge.isActive(pledge, now), now >= pend.effectiveAt)
+            if (action == MatureAction.Apply) { out = pend.newRules; p[Keys.RULES] = json.encodeToString(Rules.serializer(), out) }
+            if (action != MatureAction.Keep) p.remove(Keys.PENDING)
+        }
+        return out to action
+    }
+
+    /** Writes [rules] (if not null) and [pending] only if the stored rules still equal [expected]; false means re-run. */
+    suspend fun saveIfRulesUnchanged(expected: Rules, rules: Rules?, pending: Pending?): Boolean {
+        var ok = false
+        ds.edit { p ->
+            if (p.dec(Keys.RULES, Rules.serializer(), EMPTY_RULES) != expected) return@edit
+            ok = true
+            if (rules != null) p[Keys.RULES] = json.encodeToString(Rules.serializer(), rules)
+            if (pending == null) p.remove(Keys.PENDING) else p[Keys.PENDING] = json.encodeToString(Pending.serializer(), pending)
+        }
+        return ok
+    }
 
     val disableRequestedAtFlow: Flow<Long?> = ds.data.map { it[Keys.DISABLE_REQ]?.toLongOrNull() }
     suspend fun disableRequestedAt(): Long? = disableRequestedAtFlow.first()

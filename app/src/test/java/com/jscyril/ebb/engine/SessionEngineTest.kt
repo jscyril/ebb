@@ -75,15 +75,31 @@ class SessionEngineTest {
     }
 
     @Test fun nextAlarm() {
-        assertNull(SessionEngine.nextAlarmAt(rule, fresh(), at(10)))
+        assertNull(SessionEngine.nextAlarmAt(rule, fresh(), at(10), z))
         val s = fresh(55 * 60).copy(sessionEndsAt = at(10, 30))
-        assertEquals(at(10, 5), SessionEngine.nextAlarmAt(rule, s, at(10)))
-        assertEquals(at(10, 30), SessionEngine.nextAlarmAt(rule, fresh().copy(sessionEndsAt = at(10, 30)), at(10)))
-        assertEquals(at(10, 10), SessionEngine.nextAlarmAt(rule, fresh().copy(emergencyUntil = at(10, 10)), at(10)))
+        assertEquals(at(10, 5), SessionEngine.nextAlarmAt(rule, s, at(10), z))
+        assertEquals(at(10, 30), SessionEngine.nextAlarmAt(rule, fresh().copy(sessionEndsAt = at(10, 30)), at(10), z))
+        assertEquals(at(10, 10), SessionEngine.nextAlarmAt(rule, fresh().copy(emergencyUntil = at(10, 10)), at(10), z))
     }
 
     @Test fun emergencyOnlySetsWindow() {
         val s = fresh(7).copy(lockedUntil = at(12))
         assertEquals(s.copy(emergencyUntil = at(10, 10)), SessionEngine.startEmergency(s, at(10)))
+    }
+
+    @Test fun nextAlarmEdgeCases() {
+        // cap exhausted mid-session
+        assertEquals(at(10), SessionEngine.nextAlarmAt(rule, fresh(60 * 60).copy(sessionEndsAt = at(10, 30)), at(10), z))
+        // emergency + session: emergency wins
+        val both = fresh().copy(sessionEndsAt = at(10, 30), emergencyUntil = at(10, 10))
+        assertEquals(at(10, 10), SessionEngine.nextAlarmAt(rule, both, at(10), z))
+        // cap alarm clipped to midnight
+        val s = fresh().copy(sessionEndsAt = midnight + 30 * min)
+        assertEquals(midnight, SessionEngine.nextAlarmAt(rule, s, midnight - 30 * min, z))
+    }
+
+    @Test fun emergencyExpiredWhileLockedBlocks() {
+        val s = fresh().copy(lockedUntil = at(12), emergencyUntil = at(10, 10))
+        assertEquals(Decision.Blocked(at(12), Reason.COOLDOWN), SessionEngine.decide(rule, s, at(10, 11), z))
     }
 }

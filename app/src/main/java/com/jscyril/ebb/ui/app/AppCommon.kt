@@ -34,7 +34,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.jscyril.ebb.R
 import com.jscyril.ebb.data.Repo
 import com.jscyril.ebb.guard.ChangeQueue
-import com.jscyril.ebb.guard.Pending
+import com.jscyril.ebb.guard.Pledge
 import com.jscyril.ebb.guard.Rules
 import com.jscyril.ebb.service.TrustedNow
 import com.jscyril.ebb.ui.overlay.AppIcon
@@ -54,21 +54,41 @@ fun trustedTicker(ctx: Context, periodMs: Long = 30_000): Flow<Long> = flow {
 suspend fun maturePending(ctx: Context) {
     val repo = Repo.get(ctx)
     val p = repo.pending() ?: return
-    val (rules, left) = ChangeQueue.mature(repo.rules(), p, TrustedNow.peek(ctx))
-    if (left == null) { repo.saveRules(rules); repo.savePending(null) }
+    val now = TrustedNow.peek(ctx)
+    when (matureAction(Pledge.isActive(repo.pledge(), now), now >= p.effectiveAt)) {
+        MatureAction.Apply -> { repo.saveRules(p.newRules); repo.savePending(null) }
+        MatureAction.Drop -> repo.savePending(null)
+        MatureAction.Keep -> {}
+    }
+}
+
+sealed interface SubmitResult {
+    data object Saved : SubmitResult
+    data class Queued(val effectiveAt: Long) : SubmitResult
+    data class RefusedPledge(val pledgeEndsAt: Long) : SubmitResult
 }
 
 /**
- * Submits [proposed] through the 24 h cooldown: tighter saves now, looser waits. Returns the new pending change, or null if saved.
+ * Submits [proposed] through the 24 h cooldown: tighter saves now, looser waits, and during a pledge looser is refused.
  * A tightening save also drops an older pending change, which was computed from the old rules and would undo this one.
  */
-suspend fun submitRules(ctx: Context, proposed: Rules): Pending? {
+suspend fun submitRules(ctx: Context, proposed: Rules): SubmitResult {
     maturePending(ctx)
     val repo = Repo.get(ctx)
-    val (rules, pending) = ChangeQueue.submit(repo.rules(), proposed, TrustedNow.peek(ctx))
+    val now = TrustedNow.peek(ctx)
+    val pledge = repo.pledge()
+    val (rules, pending) = ChangeQueue.submit(repo.rules(), proposed, now)
+    if (!allowSubmit(pending != null, Pledge.isActive(pledge, now))) return SubmitResult.RefusedPledge(pledge!!.endsAt)
     if (pending == null) repo.saveRules(rules)
     repo.savePending(pending)
-    return pending
+    return if (pending == null) SubmitResult.Saved else SubmitResult.Queued(pending.effectiveAt)
+}
+
+/** Snackbar text for a [SubmitResult]. */
+fun submitMessage(ctx: Context, r: SubmitResult): String = when (r) {
+    SubmitResult.Saved -> ctx.getString(R.string.saved)
+    is SubmitResult.Queued -> ctx.getString(R.string.saved_pending, formatDayTime(ctx, r.effectiveAt))
+    is SubmitResult.RefusedPledge -> ctx.getString(R.string.pledge_refuses_loosening, formatDate(ctx, r.pledgeEndsAt))
 }
 
 /** Whether saving [draft] over [current] would be queued for 24 h. */
@@ -133,12 +153,13 @@ fun dayAndTime(at: Long): String {
 }
 
 /** "Tue, Dec 15". */
+fun formatDate(ctx: Context, at: Long): String =
+    DateUtils.formatDateTime(ctx, at, DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_ALL or DateUtils.FORMAT_SHOW_DATE)
+
 @Composable
 fun dateText(at: Long): String {
     val ctx = LocalContext.current
-    return remember(at) {
-        DateUtils.formatDateTime(ctx, at, DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_ALL or DateUtils.FORMAT_SHOW_DATE)
-    }
+    return remember(at) { formatDate(ctx, at) }
 }
 
 /** "3 d 4 h", "23 h 12 min" or "12 min"; rounds up so a pending wait never reads 0 min. */

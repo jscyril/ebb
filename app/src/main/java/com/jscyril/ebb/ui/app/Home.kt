@@ -95,7 +95,7 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
     }
     val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { adminOn = Admin.isActive(ctx) }
 
-    val apps = rules?.apps.orEmpty().values.sortedBy { it.pkg }
+    val apps = remember(rules) { rules?.apps.orEmpty().values.sortedBy { Apps.label(ctx, it.pkg).lowercase() } }
     LazyColumn(
         Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = contentPadding.calculateTopPadding() + 8.dp, bottom = contentPadding.calculateBottomPadding() + 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),

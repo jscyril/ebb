@@ -31,10 +31,11 @@ import com.jscyril.ebb.engine.Reason
 import com.jscyril.ebb.engine.SessionEngine
 import com.jscyril.ebb.engine.Tier
 import com.jscyril.ebb.guard.Admin
-import com.jscyril.ebb.guard.ChangeQueue
 import com.jscyril.ebb.guard.EmergencyPass
 import com.jscyril.ebb.guard.GuardMatcher
 import com.jscyril.ebb.guard.Pledge
+import com.jscyril.ebb.ui.app.MatureAction
+import com.jscyril.ebb.ui.app.matureAction
 import com.jscyril.ebb.ui.overlay.BlockScreen
 import com.jscyril.ebb.ui.overlay.EmergencyActivity
 import com.jscyril.ebb.ui.overlay.PromptScreen
@@ -413,9 +414,13 @@ class BlockerService : AccessibilityService() {
     private suspend fun activeRules(now: Long): Map<String, AppRule> {
         val rules = repo.rules()
         val pending = repo.pending()
-        val (matured, left) = ChangeQueue.mature(rules, pending, now)
-        if (pending != null && left == null) { repo.saveRules(matured); repo.savePending(null) }
-        return if (guarding()) matured.apps else emptyMap()
+        var active = rules
+        if (pending != null) when (matureAction(Pledge.isActive(repo.pledge(), now), now >= pending.effectiveAt)) {
+            MatureAction.Apply -> { active = pending.newRules; repo.saveRules(active); repo.savePending(null) }
+            MatureAction.Drop -> repo.savePending(null) // no loosening lands during a pledge
+            MatureAction.Keep -> {}
+        }
+        return if (guarding()) active.apps else emptyMap()
     }
 
     /** Package and screen bounds of each visible application window. */

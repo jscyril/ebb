@@ -90,4 +90,18 @@ class AppLogicTest {
         assertEquals(1, stepDown(5, 5, 1))
         assertEquals(1, stepDown(1, 5, 1))
     }
+
+    @Test fun submitDuringPledgeOnlyIfTightening() {
+        assertTrue(allowSubmit(pendingWouldBeCreated = false, pledgeActive = true))
+        assertFalse(allowSubmit(pendingWouldBeCreated = true, pledgeActive = true))
+        assertTrue(allowSubmit(pendingWouldBeCreated = true, pledgeActive = false))
+        assertTrue(allowSubmit(pendingWouldBeCreated = false, pledgeActive = false))
+    }
+
+    @Test fun pendingIsDroppedDuringPledge() {
+        assertEquals(MatureAction.Drop, matureAction(pledgeActive = true, matured = true))
+        assertEquals(MatureAction.Drop, matureAction(pledgeActive = true, matured = false))
+        assertEquals(MatureAction.Apply, matureAction(pledgeActive = false, matured = true))
+        assertEquals(MatureAction.Keep, matureAction(pledgeActive = false, matured = false))
+    }
 }

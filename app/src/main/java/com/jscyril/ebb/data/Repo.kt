@@ -69,6 +69,11 @@ class Repo private constructor(ctx: Context) {
     suspend fun rules() = rulesFlow.first()
     suspend fun saveRules(r: Rules) = put(Keys.RULES, r) { json.encodeToString(Rules.serializer(), it) }
 
+    /** Atomic read-modify-write of the rules, so rapid edits never overwrite each other. */
+    suspend fun updateRules(f: (Rules) -> Rules) {
+        ds.edit { p -> p[Keys.RULES] = json.encodeToString(Rules.serializer(), f(p.dec(Keys.RULES, Rules.serializer(), EMPTY_RULES))) }
+    }
+
     // ---- per-app state
     val statesFlow: Flow<Map<String, AppState>> = ds.data.map { it.dec(Keys.STATES, STATES_SER, emptyMap()) }
     suspend fun state(pkg: String) = statesFlow.first()[pkg] ?: emptyState()

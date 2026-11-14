@@ -124,10 +124,7 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
 
     fun submitPasses(n: Int, onMessage: (String) -> Unit) = viewModelScope.launch {
         val r = repo.rules()
-        // Spec: passes can't be raised during a pledge (afterwards raising waits 24 h like any loosening).
-        if (n > r.passesPerMonth && Pledge.isActive(repo.pledge(), TrustedNow.peek(app))) return@launch
-        val p = submitRules(app, r.copy(passesPerMonth = n))
-        onMessage(if (p == null) app.getString(R.string.saved) else app.getString(R.string.saved_pending, formatDayTime(app, p.effectiveAt)))
+        onMessage(submitMessage(app, submitRules(app, r.copy(passesPerMonth = n))))
     }
 
     /** The passcode ends the pledge only; the 48 h disable wait still applies afterwards (ruling). */
@@ -137,7 +134,7 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
         _checking.value = true
         val ok = withContext(Dispatchers.Default) { Pledge.verify(p, code) } // PBKDF2 is slow
         _checking.value = false
-        if (ok) { repo.savePledge(null); _lastFail.value = null } else _lastFail.value = SystemClock.elapsedRealtime()
+        if (ok) { repo.savePledge(null); repo.saveDisableRequestedAt(null); _lastFail.value = null } else _lastFail.value = SystemClock.elapsedRealtime()
         onResult(ok)
     }
 
@@ -265,6 +262,8 @@ private fun PledgeSection(vm: SettingsVm, pledgeActive: Boolean) {
         OutlinedButton({ ending = true }, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.pledge_end_early)) }
     } else {
         Body(stringResource(R.string.pledge_none_active))
+        val req by vm.disableReq.collectAsStateWithLifecycle()
+        if (req != null) Body(stringResource(R.string.pledge_cancels_request))
         OutlinedButton({ starting = true }, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.pledge_start)) }
     }
     if (starting) {

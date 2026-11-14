@@ -89,10 +89,11 @@ import kotlinx.coroutines.launch
 /** Ruling: before onboarding is done nothing is guarded, so rules are saved directly (no cooldown), and survive process death. */
 class OnboardingVm(app: Application) : AndroidViewModel(app) {
     private val repo = Repo.get(app)
-    val rules = repo.rulesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
-    val pledge = repo.pledgeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val rules = repo.rulesFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val pledge = repo.pledgeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private fun edit(f: (Rules) -> Rules) = viewModelScope.launch { repo.saveRules(f(repo.rules())) }
+    /** Atomic in DataStore, so quick toggles never overwrite each other. */
+    private fun edit(f: (Rules) -> Rules) = viewModelScope.launch { repo.updateRules(f) }
 
     /** One tier list + cap for every app picked during onboarding; per-app tweaks happen on the Rules tab. */
     fun template(r: Rules?) = r?.apps?.values?.firstOrNull() ?: AppRule()
@@ -107,7 +108,7 @@ class OnboardingVm(app: Application) : AndroidViewModel(app) {
 
     fun finish() = viewModelScope.launch {
         // Sorted so the prompt reads shortest first.
-        repo.saveRules(repo.rules().let { r -> r.copy(apps = r.apps.mapValues { it.value.copy(tiers = it.value.tiers.sortedBy { t -> t.sessionMin }) }) })
+        repo.updateRules { r -> r.copy(apps = r.apps.mapValues { it.value.copy(tiers = it.value.tiers.sortedBy { t -> t.sessionMin }) }) }
         repo.savePending(null)
         repo.setOnboardingDone()
     }
@@ -148,6 +149,7 @@ fun Onboarding(vm: OnboardingVm = viewModel()) {
         Step.TIERS -> validateTiers(template.tiers).isEmpty()
         Step.ADMIN -> adminOn
         Step.ACCESSIBILITY -> serviceOn
+        Step.DONE -> adminOn && serviceOn // either may have been switched off since its step
         else -> true
     }
 
@@ -201,7 +203,9 @@ fun Onboarding(vm: OnboardingVm = viewModel()) {
                         if (p != null) Text(stringResource(R.string.pledge_locked_until, dateText(p.endsAt)), style = MaterialTheme.typography.titleMedium)
                         else PledgeFlow(allowNone = true, onDone = { go(1) })
                     }
-                    Step.DONE -> Page(MaterialShapes.SoftBurst, R.string.onb_done_title, R.string.onb_done_body) {}
+                    Step.DONE -> Page(MaterialShapes.SoftBurst, R.string.onb_done_title, R.string.onb_done_body) {
+                        if (!adminOn || !serviceOn) Text(stringResource(R.string.onb_done_missing), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
             Row(
@@ -214,7 +218,7 @@ fun Onboarding(vm: OnboardingVm = viewModel()) {
                 AnimatedContent(step, label = "cta") { s ->
                     when {
                         s == Step.PLEDGE && pledge == null -> Spacer(Modifier.size(1.dp))
-                        s == Step.DONE -> BigButton(stringResource(R.string.onb_start), { vm.finish() })
+                        s == Step.DONE -> BigButton(stringResource(R.string.onb_start), { vm.finish() }, enabled = canContinue)
                         else -> BigButton(stringResource(R.string.onb_continue), { go(1) }, enabled = canContinue)
                     }
                 }

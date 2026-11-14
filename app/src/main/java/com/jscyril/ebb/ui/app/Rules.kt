@@ -63,11 +63,11 @@ class RulesVm(private val app: Application) : AndroidViewModel(app) {
     val rules = repo.rulesFlow.stateIn(viewModelScope, sub, null)
     val pending = repo.pendingFlow.stateIn(viewModelScope, sub, null)
     val now = trustedTicker(app).stateIn(viewModelScope, sub, null)
+    val pledge = repo.pledgeFlow.stateIn(viewModelScope, sub, null)
 
     /** Sends [proposed] through the cooldown and reports the outcome as a snackbar message. */
     fun submit(proposed: Rules, onMessage: (String) -> Unit) = viewModelScope.launch {
-        val p = submitRules(app, proposed)
-        onMessage(if (p == null) app.getString(R.string.saved) else app.getString(R.string.saved_pending, formatDayTime(app, p.effectiveAt)))
+        onMessage(submitMessage(app, submitRules(app, proposed)))
     }
 
     /** Keeping the current rules is never looser, so cancelling applies at once. */
@@ -80,9 +80,13 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
     val rules by vm.rules.collectAsStateWithLifecycle()
     val pending by vm.pending.collectAsStateWithLifecycle()
     val now by vm.now.collectAsStateWithLifecycle()
+    val pledge by vm.pledge.collectAsStateWithLifecycle()
+    val pledgeUntil = pledge?.endsAt?.takeIf { end -> now?.let { it < end } ?: true } // active pledge: only tightening
+    val ctx = LocalContext.current
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     var adding by rememberSaveable { mutableStateOf(false) }
     val current = rules ?: return
+    val sorted = remember(current.apps) { current.apps.values.sortedBy { Apps.label(ctx, it.pkg).lowercase() } }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -92,7 +96,9 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
         item(key = "title") {
             Text(stringResource(R.string.tab_rules), Modifier.padding(vertical = 8.dp).semantics { heading() }, style = MaterialTheme.typography.displaySmall)
         }
-        item(key = "intro") { Body(stringResource(R.string.rules_intro)) }
+        item(key = "intro") {
+            Body(if (pledgeUntil != null) stringResource(R.string.rules_pledge_intro, dateText(pledgeUntil)) else stringResource(R.string.rules_intro))
+        }
         val p = pending
         if (p != null) item(key = "pending") {
             Surface(Modifier.animateItem().fillMaxWidth(), color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.large) {
@@ -115,10 +121,10 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
                 }
             }
         }
-        items(current.apps.values.sortedBy { it.pkg }, key = { it.pkg }) { rule ->
+        items(sorted, key = { it.pkg }) { rule ->
             AppRuleCard(
                 rule, expanded == rule.pkg, { expanded = if (expanded == rule.pkg) null else rule.pkg },
-                current, pending != null, onSave = { vm.submit(it, onMessage); expanded = null }, Modifier.animateItem(),
+                current, pending != null, pledgeUntil, onSave = { vm.submit(it, onMessage); expanded = null }, Modifier.animateItem(),
             )
         }
         item(key = "add") {
@@ -152,7 +158,7 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
 
 @Composable
 private fun AppRuleCard(
-    rule: AppRule, open: Boolean, onToggle: () -> Unit, current: Rules, hasPending: Boolean,
+    rule: AppRule, open: Boolean, onToggle: () -> Unit, current: Rules, hasPending: Boolean, pledgeUntil: Long?,
     onSave: (Rules) -> Unit, modifier: Modifier,
 ) {
     val name = rememberLabel(rule.pkg)
@@ -176,10 +182,16 @@ private fun AppRuleCard(
                     val proposed = current.copy(apps = current.apps + (rule.pkg to draft.copy(tiers = draft.tiers.sortedBy { it.sessionMin })))
                     val changed = draft != rule
                     val looser = changed && isLooser(current, proposed)
+                    val refused = looser && !allowSubmit(true, pledgeUntil != null)
                     AnimatedVisibility(looser) {
                         Text(
-                            stringResource(if (hasPending) R.string.rules_looser_replaces else R.string.rules_looser),
-                            color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodyMedium,
+                            when {
+                                refused -> stringResource(R.string.pledge_refuses_loosening, dateText(pledgeUntil!!))
+                                hasPending -> stringResource(R.string.rules_looser_replaces)
+                                else -> stringResource(R.string.rules_looser)
+                            },
+                            color = if (refused) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     AnimatedVisibility(changed && !looser && hasPending) {
@@ -187,14 +199,17 @@ private fun AppRuleCard(
                     }
                     BigButton(
                         stringResource(if (looser) R.string.rules_save_wait else R.string.rules_save),
-                        { onSave(proposed) }, Modifier.fillMaxWidth(), enabled = changed && validateTiers(draft.tiers).isEmpty(),
+                        { onSave(proposed) }, Modifier.fillMaxWidth(), enabled = changed && !refused && validateTiers(draft.tiers).isEmpty(),
                     )
-                    OutlinedButton({ onSave(current.copy(apps = current.apps - rule.pkg)) }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Icon(painterResource(R.drawable.ic_delete), null)
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.rules_remove_app, name))
+                    // Removing an app only loosens, so it is hidden during a pledge (the intro says why).
+                    if (pledgeUntil == null) {
+                        OutlinedButton({ onSave(current.copy(apps = current.apps - rule.pkg)) }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                            Icon(painterResource(R.drawable.ic_delete), null)
+                            Spacer(Modifier.size(8.dp))
+                            Text(stringResource(R.string.rules_remove_app, name))
+                        }
+                        Body(stringResource(R.string.rules_remove_note))
                     }
-                    Body(stringResource(R.string.rules_remove_note))
                 }
             }
         }
@@ -205,8 +220,10 @@ private fun AppRuleCard(
 @Composable
 private fun pendingSummary(cur: Rules, new: Rules): String {
     val ctx = LocalContext.current
-    val removed = (cur.apps.keys - new.apps.keys).map { Apps.label(ctx, it) }
-    val changed = cur.apps.keys.intersect(new.apps.keys).filter { cur.apps[it] != new.apps[it] }.map { Apps.label(ctx, it) }
+    val (removed, changed) = remember(cur, new) {
+        (cur.apps.keys - new.apps.keys).map { Apps.label(ctx, it) } to
+            cur.apps.keys.intersect(new.apps.keys).filter { cur.apps[it] != new.apps[it] }.map { Apps.label(ctx, it) }
+    }
     val parts = buildList {
         if (removed.isNotEmpty()) add(stringResource(R.string.pending_removes, removed.joinToString()))
         if (changed.isNotEmpty()) add(stringResource(R.string.pending_changes, changed.joinToString()))

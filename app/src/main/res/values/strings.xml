@@ -243,4 +243,8 @@
     <string name="onb_pledge_body">A pledge locks Ebb on for a set time, so a bad evening can\'t undo a good decision.</string>
     <string name="onb_done_title">You\'re set</string>
     <string name="onb_done_body">Ebb is watching your chosen apps from now on. Breathe out.</string>
+    <string name="pledge_refuses_loosening">Your pledge is active until %1$s. Limits can only get stricter.</string>
+    <string name="rules_pledge_intro">Your pledge is active until %1$s. Limits can only get stricter until then.</string>
+    <string name="pledge_cancels_request">Starting a pledge cancels your request to turn Ebb off.</string>
+    <string name="onb_done_missing">Uninstall protection or Ebb\'s service was switched off. Go back and turn it on to start.</string>
 </resources>

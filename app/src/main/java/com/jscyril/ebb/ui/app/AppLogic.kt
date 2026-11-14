@@ -55,3 +55,15 @@ fun stepUp(v: Int, step: Int, max: Int): Int = minOf(max, (v / step + 1) * step)
 
 /** Previous stepper value: down to the previous multiple of [step], clamped to [min]. */
 fun stepDown(v: Int, step: Int, min: Int): Int = maxOf(min, if (v % step == 0) v - step else v / step * step)
+
+/** During a pledge only tightening may be submitted: queuing loosenings (e.g. removing every app) would amount to disabling. */
+fun allowSubmit(pendingWouldBeCreated: Boolean, pledgeActive: Boolean): Boolean = !(pendingWouldBeCreated && pledgeActive)
+
+enum class MatureAction { Apply, Drop, Keep }
+
+/** What to do with an existing pending change: a pledge drops it (defence in depth), otherwise apply once due. */
+fun matureAction(pledgeActive: Boolean, matured: Boolean): MatureAction = when {
+    pledgeActive -> MatureAction.Drop
+    matured -> MatureAction.Apply
+    else -> MatureAction.Keep
+}

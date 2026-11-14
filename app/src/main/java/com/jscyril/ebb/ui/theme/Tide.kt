@@ -17,6 +17,9 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /** Three slow layered sine waves along the bottom; the top crest sits at [level] (fraction of height). One infinite transition; static when [animate] is false. */
+/** Whole multiples, so the loop at 2π is seamless. */
+private val SPEEDS = intArrayOf(1, -1, 2)
+
 @Composable
 fun Tide(modifier: Modifier, animate: Boolean, level: Float = 0.70f) {
     val phase: State<Float> = if (animate) {
@@ -33,7 +36,7 @@ fun Tide(modifier: Modifier, animate: Boolean, level: Float = 0.70f) {
             val amp = size.height * (0.028f - i * 0.006f)
             val base = size.height * (level + i * 0.08f)
             val k = (2 * PI / size.width).toFloat() * (1f + i * 0.5f)
-            val speed = intArrayOf(1, -1, 2)[i] // whole multiples, so the loop at 2π is seamless
+            val speed = SPEEDS[i]
             path.moveTo(0f, size.height)
             var x = 0f
             while (x <= size.width + 12f) {

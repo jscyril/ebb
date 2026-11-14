@@ -142,7 +142,15 @@ fun PledgeFlow(allowNone: Boolean, onDone: (pledged: Boolean) -> Unit, modifier:
             }
             BigButton(
                 stringResource(R.string.pledge_lock_in),
-                { scope.launch { Repo.get(ctx).savePledge(record); made = null; onDone(true) } },
+                {
+                    scope.launch {
+                        // A pledge starts clean: no queued loosening and no disable request survive into it,
+                        // or an early end by passcode could skip the 48 h wait.
+                        val repo = Repo.get(ctx)
+                        repo.savePledge(record); repo.savePending(null); repo.saveDisableRequestedAt(null)
+                        made = null; onDone(true)
+                    }
+                },
                 Modifier.fillMaxWidth(), enabled = handedOver,
             )
         }

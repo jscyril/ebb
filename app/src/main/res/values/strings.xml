@@ -5,13 +5,51 @@
     <string name="tier_locked_hours">then locked %1$d h</string>
     <string name="tier_locked_minutes">then locked %1$d min</string>
     <string name="accessibility_description">Ebb uses this service to notice when you open an app you chose to limit, so it can ask how long you want to use it, show when it unlocks, and end your session on time. It does not collect or send any text or personal data.</string>
-    <string name="overlay_prompt_title">Open %1$s for how long?</string>
-    <string name="overlay_tier_hours">%1$d min, then locked %2$d h</string>
-    <string name="overlay_tier_minutes">%1$d min, then locked %2$d min</string>
-    <string name="overlay_locked_until">Locked until %1$s</string>
-    <string name="overlay_daily_cap">Daily limit reached</string>
     <string name="overlay_go_home">Go home</string>
-    <string name="overlay_times_up">Time\'s up</string>
+    <string name="prompt_title">How long do you need %1$s?</string>
+    <string name="prompt_used">Used %1$d of %2$d min today</string>
+    <string name="prompt_start">Start %1$d min</string>
+    <string name="prompt_pick">Pick a time</string>
+    <string name="prompt_not_now">Not now</string>
+    <string name="prompt_compact">Open %1$s full screen to choose a time</string>
+    <string name="block_reason_cooldown">Cooldown after your session</string>
+    <string name="block_reason_cap">Daily limit reached · resets at midnight</string>
+    <string name="block_until">until %1$s</string>
+    <string name="block_ring_desc">Locked, unlocks at %1$s</string>
+    <string name="block_compact">Locked until %1$s</string>
+    <plurals name="block_emergency">
+        <item quantity="one">Emergency access · %d left</item>
+        <item quantity="other">Emergency access · %d left</item>
+    </plurals>
+    <string name="block_no_passes">No emergency passes left this month</string>
+    <string-array name="block_messages">
+        <item>Nothing new is happening there.</item>
+        <item>Breathe. The feed will still be there.</item>
+        <item>You chose this limit for a reason.</item>
+        <item>Look up. What is around you right now?</item>
+        <item>Boredom is where good ideas start.</item>
+        <item>Future you says thanks.</item>
+    </string-array>
+    <string name="times_up">Time\'s up</string>
+    <string name="times_up_locked">%1$s is locked until %2$s</string>
+    <string name="times_up_ended">Your %1$s session has ended</string>
+    <string name="times_up_dismiss">Dismiss</string>
+    <string name="emergency_title">Emergency access</string>
+    <plurals name="emergency_cost">
+        <item quantity="one">This uses 1 of your %d emergency pass and resets your streak.</item>
+        <item quantity="other">This uses 1 of your %d emergency passes and resets your streak.</item>
+    </plurals>
+    <string name="emergency_wait">Take a slow breath. If you still need %1$s in a minute, you can continue.</string>
+    <plurals name="emergency_wait_desc">
+        <item quantity="one">Please wait, %d second left</item>
+        <item quantity="other">Please wait, %d seconds left</item>
+    </plurals>
+    <string name="emergency_type">Type this to open %1$s for 10 minutes</string>
+    <string name="emergency_phrase">“%1$s”</string>
+    <string name="emergency_field">Phrase</string>
+    <string name="emergency_confirm">Open for 10 minutes</string>
+    <string name="emergency_cancel">Cancel</string>
+    <string name="emergency_compact">Open %1$s full screen for emergency access</string>
     <string name="guard_toast">Ebb protection is on</string>
     <string name="admin_explanation">Turning this on stops Ebb from being uninstalled on impulse. Ebb asks for no device admin powers: it cannot lock, wipe or watch your phone. You can turn it off later from inside Ebb.</string>
     <string name="admin_disable_warning">Ebb protection is on. Turn it off from inside Ebb instead.</string>

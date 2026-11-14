@@ -11,14 +11,17 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.SystemClock
-import android.text.format.DateFormat
 import android.util.Log
+import android.util.LruCache
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import com.jscyril.ebb.R
 import com.jscyril.ebb.data.Kind
 import com.jscyril.ebb.data.Repo
@@ -29,8 +32,14 @@ import com.jscyril.ebb.engine.SessionEngine
 import com.jscyril.ebb.engine.Tier
 import com.jscyril.ebb.guard.Admin
 import com.jscyril.ebb.guard.ChangeQueue
+import com.jscyril.ebb.guard.EmergencyPass
 import com.jscyril.ebb.guard.GuardMatcher
 import com.jscyril.ebb.guard.Pledge
+import com.jscyril.ebb.ui.overlay.BlockScreen
+import com.jscyril.ebb.ui.overlay.EmergencyScreen
+import com.jscyril.ebb.ui.overlay.PromptScreen
+import com.jscyril.ebb.ui.overlay.TimesUpScreen
+import com.jscyril.ebb.ui.theme.EbbThemeFromRepo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,9 +51,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * Watches the foreground app, gates watched apps through [SessionEngine], tracks foreground time
@@ -74,6 +83,8 @@ class BlockerService : AccessibilityService() {
     private var guardPkg: String? = null // last guard-package window state, so fragment-nav scans keep its class
     private var guardCls: String? = null
     private var lastToast = 0L
+    private var emergencyPkg: String? = null // the emergency flow is showing for this package
+    private val icons = LruCache<String, ImageBitmap>(8)
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -252,8 +263,12 @@ class BlockerService : AccessibilityService() {
             is Decision.Allow -> { dismiss(); schedule(rule, pkg, now) }
             is Decision.Prompt -> {
                 cancelTimer()
-                val label = label(pkg)
-                show(bounds, sticky = false) { PromptOverlay(label, d.options) { t -> serial { pick(pkg, t) } } }
+                val name = label(pkg)
+                val icon = icon(pkg)
+                val used = if (s.dayKey == SessionEngine.dayKey(now, zone)) s.usedTodaySec / 60 else 0
+                show(bounds, sticky = false) {
+                    PromptScreen(name, icon, d.options, used, rule.dailyCapMin, onPick = { t -> serial { pick(pkg, t) } }, onGoHome = ::goHome)
+                }
             }
             is Decision.Blocked -> {
                 cancelTimer()
@@ -261,11 +276,69 @@ class BlockerService : AccessibilityService() {
                     repo.logSession(pkg, now, now, 0, Kind.BLOCKED_ATTEMPT)
                     performGlobalAction(GLOBAL_ACTION_HOME) // background it so audio/video usually stop
                 }
-                val label = label(pkg)
-                val until = if (d.reason == Reason.COOLDOWN) timeText(d.until) else null
-                show(bounds, sticky = true) { BlockOverlay(label, until, ::goHome) }
+                if (emergencyPkg == pkg && overlay?.isShowing == true) return // mid emergency flow: keep it
+                showBlock(pkg, rule, d, now, bounds)
             }
         }
+    }
+
+    private suspend fun showBlock(pkg: String, rule: AppRule, d: Decision.Blocked, now: Long, bounds: Rect?) {
+        emergencyPkg = null
+        val name = label(pkg)
+        val icon = icon(pkg)
+        val passes = passesLeft(now)
+        val from = lockStart(rule, d, now)
+        show(bounds, sticky = true) {
+            BlockScreen(name, icon, d.until, d.reason, passes, onEmergency = { serial { openEmergency(pkg) } }, onGoHome = ::goHome, now = now, lockedFrom = from)
+        }
+    }
+
+    /**
+     * When the lock began, for the ring. shortcut: AppState keeps no lock start, so a cooldown takes the shortest
+     * tier lock that covers the time left; store the start in AppState if the ring must be exact.
+     */
+    private fun lockStart(rule: AppRule, d: Decision.Blocked, now: Long): Long = when (d.reason) {
+        Reason.DAILY_CAP -> Instant.ofEpochMilli(now).atZone(zone).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
+        Reason.COOLDOWN -> d.until - (rule.tiers.map { it.lockMin * 60_000L }.filter { d.until - it <= now }.minOrNull() ?: (d.until - now))
+    }
+
+    private suspend fun passesLeft(now: Long) =
+        EmergencyPass.remaining(repo.emergencyUses(), repo.rules().passesPerMonth, now, zone)
+
+    /** Block's emergency action: swaps in the friction flow (full screen, so the keyboard works). */
+    private suspend fun openEmergency(pkg: String) {
+        if (overlay?.isShowing != true || emergencyPkg != null) return
+        val now = clock.now()
+        val passes = passesLeft(now)
+        if (passes <= 0) return
+        emergencyPkg = pkg
+        val name = label(pkg)
+        show(null, sticky = true) {
+            EmergencyScreen(name, passes, onConfirm = { serial { confirmEmergency(pkg) } }, onCancel = { serial { regate(pkg) } })
+        }
+    }
+
+    private suspend fun confirmEmergency(pkg: String) {
+        if (emergencyPkg != pkg) return // flow already left, or a double tap
+        val now = clock.now()
+        if (activeRules(now)[pkg] == null) { dismiss(); return }
+        if (passesLeft(now) <= 0) { regate(pkg); return }
+        repo.addEmergencyUse(now)
+        repo.logSession(pkg, now, now + SessionEngine.EMERGENCY_MIN * 60_000L, SessionEngine.EMERGENCY_MIN, Kind.EMERGENCY)
+        repo.updateState(pkg) { SessionEngine.startEmergency(it, now) }
+        dismiss()
+        // Still visible (PiP/split): gate now; it is Allow, so it starts the interval and schedules the timer.
+        // Otherwise Block sat over the launcher: open the app, and its window event does the same.
+        if (fgPkg == pkg) regate(pkg)
+        else runCatching { packageManager.getLaunchIntentForPackage(pkg)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let(::startActivity) }
+    }
+
+    /** Leaves the emergency flow and shows whatever the engine now says for [pkg]. */
+    private suspend fun regate(pkg: String) {
+        emergencyPkg = null
+        val now = clock.now()
+        val rule = activeRules(now)[pkg] ?: run { dismiss(); return }
+        gate(pkg, rule, now, isNew = false, bounds = null)
     }
 
     private suspend fun pick(pkg: String, tier: Tier) {
@@ -289,12 +362,16 @@ class BlockerService : AccessibilityService() {
             val at = SessionEngine.nextAlarmAt(rule, s, now, zone)
             if (at == null || at <= now) SessionEngine.endSession(s, now) else s
         }
-        if (SessionEngine.decide(rule, s, now, zone) is Decision.Allow) {
+        val d = SessionEngine.decide(rule, s, now, zone)
+        if (d is Decision.Allow) {
             tracker.onForeground(pkg, true, now) // midnight or emergency still active: keep going
             schedule(rule, pkg, now)
         } else {
             performGlobalAction(GLOBAL_ACTION_HOME)
-            show(null, sticky = true) { TimesUpOverlay(::goHome) }
+            val name = label(pkg)
+            val icon = icon(pkg)
+            val next = (d as? Decision.Blocked)?.until ?: now // Prompt: nothing locked, the session just ended
+            show(null, sticky = true) { TimesUpScreen(name, icon, next, ::goHome) }
         }
     }
 
@@ -352,11 +429,12 @@ class BlockerService : AccessibilityService() {
     private fun show(bounds: Rect?, sticky: Boolean, content: @Composable () -> Unit) {
         this.sticky = sticky && bounds == null
         mode = if (bounds == null) OverlayMode.FULL else OverlayMode.WINDOW
-        overlay?.show(bounds, content)
+        overlay?.show(bounds) { EbbThemeFromRepo(content) }
         audioFocus(true)
     }
 
-    private fun dismiss() { overlay?.dismiss(); sticky = false; mode = null; audioFocus(false) }
+    /** Also resets the emergency flow: leaving the overlay starts it over. */
+    private fun dismiss() { overlay?.dismiss(); sticky = false; mode = null; emergencyPkg = null; audioFocus(false) }
 
     private fun audioFocus(hold: Boolean) {
         if (hold == holdingFocus) return
@@ -376,9 +454,10 @@ class BlockerService : AccessibilityService() {
         packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
     }.getOrDefault(pkg)
 
-    private fun timeText(at: Long): String =
-        DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(this)) "HH:mm" else "h:mm a")
-            .withZone(zone).format(Instant.ofEpochMilli(at))
+    /** Small launcher icon for the overlays, rendered off the main thread and cached. */
+    private suspend fun icon(pkg: String): ImageBitmap? = icons[pkg] ?: withContext(Dispatchers.Default) {
+        runCatching { packageManager.getApplicationIcon(pkg).toBitmap(ICON_PX, ICON_PX).asImageBitmap() }.getOrNull()
+    }?.also { icons.put(pkg, it) }
 
     private fun teardown() {
         if (torn) return
@@ -394,5 +473,6 @@ class BlockerService : AccessibilityService() {
         const val TAG = "EbbBlocker"
         const val SYSTEM_UI = "com.android.systemui"
         const val GUARD_NODES = 250
+        const val ICON_PX = 96
     }
 }

@@ -5,7 +5,7 @@ import java.time.ZoneId
 
 object SessionEngine {
     private const val MIN = 60_000L
-    private const val EMERGENCY_MIN = 10
+    const val EMERGENCY_MIN = 10
 
     fun dayKey(now: Long, zone: ZoneId): Int =
         Instant.ofEpochMilli(now).atZone(zone).toLocalDate().let { it.year * 10000 + it.monthValue * 100 + it.dayOfMonth }

@@ -1,0 +1,14 @@
+package com.jscyril.ebb
+
+import android.app.Application
+import com.jscyril.ebb.data.Repo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class EbbApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        CoroutineScope(Dispatchers.IO).launch { Repo.get(this@EbbApp).pruneOldEvents(System.currentTimeMillis()) }
+    }
+}

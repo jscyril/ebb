@@ -2,6 +2,8 @@ package com.jscyril.ebb.service
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.PixelFormat
+import android.graphics.Rect
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -26,8 +28,16 @@ class OverlayHost(private val service: AccessibilityService) {
     private var compose: ComposeView? = null
     private var owner: Owner? = null
 
-    fun show(content: @Composable () -> Unit) {
-        compose?.let { it.setContent(content); return }
+    /**
+     * Full-screen and focusable when [bounds] is null. With [bounds] (a watched app visible only in PiP or
+     * split screen) it covers just that rect and lets touches elsewhere through, so the user is never trapped.
+     */
+    fun show(bounds: Rect? = null, content: @Composable () -> Unit) {
+        root?.let { r ->
+            runCatching { wm.updateViewLayout(r, params(bounds)) }
+            compose?.setContent(content)
+            return
+        }
         val o = Owner()
         val cv = ComposeView(service).apply { setContent(content) }
         val frame = object : FrameLayout(service) {
@@ -44,19 +54,25 @@ class OverlayHost(private val service: AccessibilityService) {
         frame.setViewTreeSavedStateRegistryOwner(o)
         frame.setViewTreeViewModelStoreOwner(o)
         frame.addView(cv)
-        val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
-        )
         try {
-            wm.addView(frame, lp)
+            wm.addView(frame, params(bounds))
         } catch (e: RuntimeException) {
             o.destroy()
             throw e
         }
         root = frame; compose = cv; owner = o
+    }
+
+    private fun params(b: Rect?): WindowManager.LayoutParams {
+        val lp = WindowManager.LayoutParams(
+            b?.width() ?: WindowManager.LayoutParams.MATCH_PARENT, b?.height() ?: WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or (if (b == null) 0 else
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL),
+            PixelFormat.TRANSLUCENT,
+        )
+        if (b != null) { lp.gravity = Gravity.TOP or Gravity.START; lp.x = b.left; lp.y = b.top }
+        return lp
     }
 
     fun dismiss() {

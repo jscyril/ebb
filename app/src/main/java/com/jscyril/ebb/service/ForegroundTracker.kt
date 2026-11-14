@@ -7,7 +7,9 @@ class ForegroundTracker {
     /** The watched package whose interval is open, if any. */
     var pkg: String? = null
         private set
-    private var start = 0L
+    /** Start of the open interval; meaningful only while [pkg] is non-null. */
+    var start = 0L
+        private set
 
     /** Returns the closed interval of the previously tracked watched app, if any. */
     fun onForeground(pkg: String?, watched: Boolean, now: Long): Interval? {
@@ -25,3 +27,7 @@ class ForegroundTracker {
         return if (now > start) Interval(p, start, now) else null
     }
 }
+
+/** Which watched app is visible among [windowPkgs] (e.g. PiP, split screen); prefers [current]. */
+fun visibleWatched(windowPkgs: List<String>, watched: Set<String>, current: String?): String? =
+    current?.takeIf { it in watched && it in windowPkgs } ?: windowPkgs.firstOrNull { it in watched }

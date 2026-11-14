@@ -4,8 +4,8 @@
     <string name="hello">Hello</string>
     <string name="accessibility_description">Ebb uses this service to notice when you open an app you chose to limit, so it can ask how long you want to use it, show when it unlocks, and end your session on time. It does not collect or send any text or personal data.</string>
     <string name="overlay_prompt_title">Open %1$s for how long?</string>
-    <string name="overlay_tier_hours">%1$d min → locked %2$d h</string>
-    <string name="overlay_tier_minutes">%1$d min → locked %2$d min</string>
+    <string name="overlay_tier_hours">%1$d min, then locked %2$d h</string>
+    <string name="overlay_tier_minutes">%1$d min, then locked %2$d min</string>
     <string name="overlay_locked_until">Locked until %1$s</string>
     <string name="overlay_daily_cap">Daily limit reached</string>
     <string name="overlay_go_home">Go home</string>

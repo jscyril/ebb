@@ -20,7 +20,7 @@ class TrustedNow(private val ctx: Context, private val repo: Repo, private val s
         val elapsed = SystemClock.elapsedRealtime()
         val t = TrustedClock.trusted(
             a?.wall ?: 0, a?.elapsed ?: 0, elapsed, System.currentTimeMillis(), a?.lastTrusted ?: 0,
-            rebooted = a == null || a.bootCount != boot,
+            rebooted = a == null || a.bootCount != boot || elapsed < a.elapsed,
         )
         anchor = ClockAnchor(t, elapsed, t, boot)
         lastSavedElapsed = elapsed

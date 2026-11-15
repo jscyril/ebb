@@ -246,6 +246,10 @@
     </plurals>
     <string name="pledge_none_active">No pledge is running. A pledge makes Ebb impossible to turn off for a while.</string>
     <string name="pledge_start">Start a pledge</string>
+    <string name="set_silence">Notifications</string>
+    <string name="silence_explain">While an app is locked, Ebb snoozes its notifications until it unlocks, so they can\'t pull you back in. Nothing is lost: they come back when the lock ends.</string>
+    <string name="silence_on">On: locked apps\' notifications are snoozed</string>
+    <string name="silence_turn_on">Turn on</string>
     <string name="set_payments">Payments</string>
     <string name="pay_explain">Google Pay and some other payment apps refuse to pay while Ebb\'s accessibility service is on. Pause Ebb for 5 minutes before you open them; it turns itself back on. %1$d pauses a day.</string>
     <string name="pay_setup">One-time setup: connect your phone to a computer with adb and run this. It also lets Ebb turn itself back on if it gets switched off.</string>

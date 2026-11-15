@@ -103,6 +103,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.jscyril.ebb.service.NotificationSilencer
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.flow.combine
 import com.jscyril.ebb.service.SelfToggle
@@ -197,6 +198,7 @@ fun SettingsTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: 
         rules?.let { r -> Card { PassesSection(r.passesPerMonth, pledgeActive, vm, onMessage) } }
         Card { PledgeSection(vm, pledgeActive) }
         Card { ProtectionSection(vm, pledgeActive) }
+        Card { SilenceSection() }
         Card { PaymentsSection(vm) }
         if (BuildConfig.DEBUG) Card { TestModeSection(vm) }
         Card { AboutSection() }
@@ -433,6 +435,21 @@ private fun ProtectionSection(vm: SettingsVm, pledgeActive: Boolean) {
             }
         }
     }
+}
+
+/** Snoozing a locked app's notifications needs notification access, which only the user can grant. */
+@Composable
+private fun SilenceSection() {
+    val ctx = LocalContext.current
+    var granted by remember { mutableStateOf(NotificationSilencer.isGranted(ctx)) }
+    LifecycleResumeEffect(Unit) { granted = NotificationSilencer.isGranted(ctx); onPauseOrDispose {} }
+    SectionTitle(stringResource(R.string.set_silence), Modifier.semantics { heading() })
+    Body(stringResource(R.string.silence_explain))
+    if (granted) Text(stringResource(R.string.silence_on), style = MaterialTheme.typography.bodyLarge)
+    else OutlinedButton(
+        { ctx.startActivity(NotificationSilencer.settingsIntent(ctx)) },
+        Modifier.heightIn(min = 48.dp),
+    ) { Text(stringResource(R.string.silence_turn_on)) }
 }
 
 /** Pause for payment apps that refuse to run beside an accessibility service; see [PaymentPause]. */

@@ -352,6 +352,7 @@ class BlockerService : AccessibilityService() {
         val icon = icon(pkg)
         val passes = passesLeft(now)
         val from = lockStart(rule, d, now)
+        NotificationSilencer.sweepNow()
         show(bounds, sticky = true) {
             BlockScreen(name, icon, d.until, d.reason, passes, onEmergency = { serial { openEmergency(pkg) } }, onGoHome = ::goHome, onUnlocked = ::unlocked, now = now, lockedFrom = from)
         }
@@ -457,6 +458,7 @@ class BlockerService : AccessibilityService() {
             val icon = icon(pkg)
             val next = (d as? Decision.Blocked)?.until ?: now // Prompt: nothing locked, the session just ended
             show(null, sticky = true) { TimesUpScreen(name, icon, next, ::goHome) }
+            if (d is Decision.Blocked) NotificationSilencer.sweepNow()
         }
     }
 

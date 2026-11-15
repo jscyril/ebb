@@ -10,6 +10,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -143,15 +145,17 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
 private fun Hero(todaySec: Long, fraction: Float, modifier: Modifier) {
     val reduced = rememberReducedMotion()
     val level by animateFloatAsState(0.88f - 0.6f * fraction, EbbMotion.Slow(), label = "level")
+    val cs = MaterialTheme.colorScheme
+    val wash = remember(cs) { Brush.linearGradient(listOf(cs.primaryContainer, cs.tertiaryContainer)) }
     ElevatedCard(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
-        Box {
+        Box(Modifier.fillMaxWidth().background(wash)) {
             Tide(Modifier.matchParentSize(), animate = !reduced, level = level)
             Column(Modifier.padding(24.dp).padding(bottom = 24.dp)) {
-                Text(stringResource(R.string.home_today), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.home_today), style = MaterialTheme.typography.titleMedium, color = cs.onPrimaryContainer.copy(alpha = 0.8f))
                 AnimatedContent(usageText(todaySec), transitionSpec = { fadeIn(EbbMotion.Standard()) togetherWith fadeOut(EbbMotion.Fast()) }, label = "total") {
-                    Text(it, style = MaterialTheme.typography.displayMedium)
+                    Text(it, style = MaterialTheme.typography.displayMedium, color = cs.onPrimaryContainer)
                 }
-                Text(stringResource(R.string.home_today_sub), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.home_today_sub), style = MaterialTheme.typography.bodyMedium, color = cs.onPrimaryContainer.copy(alpha = 0.8f))
             }
         }
     }

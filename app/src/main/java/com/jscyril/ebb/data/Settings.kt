@@ -37,7 +37,7 @@ data class ClockAnchor(val wall: Long = 0, val elapsed: Long = 0, val lastTruste
 
 enum class DarkMode { SYSTEM, LIGHT, DARK, AMOLED }
 enum class Accent { DYNAMIC, TIDE, CORAL, MOSS, DUSK, SAND }
-data class ThemePrefs(val dark: DarkMode = DarkMode.SYSTEM, val accent: Accent = Accent.DYNAMIC)
+data class ThemePrefs(val dark: DarkMode = DarkMode.SYSTEM, val accent: Accent = Accent.TIDE)
 
 /** ByteArrays as Base64 so the record fits a JSON string. */
 @Serializable

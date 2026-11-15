@@ -8,6 +8,10 @@
         </intent>
     </queries>
 
+    <!-- Session countdown notification; on Android 16+ it can show as a status bar timer chip. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+
     <application
         android:name=".EbbApp"
         android:allowBackup="false"

@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.contentColorFor
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -63,12 +66,14 @@ fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
 
 /** Elevated, generously rounded card. Clickable (with press spring) when [onClick] is given. */
 @Composable
-fun SpringCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun SpringCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, container: Color = Color.Unspecified, content: @Composable ColumnScope.() -> Unit) {
+    val colors = if (container == Color.Unspecified) CardDefaults.elevatedCardColors()
+    else CardDefaults.elevatedCardColors(containerColor = container, contentColor = contentColorFor(container))
     if (onClick == null) {
-        ElevatedCard(modifier, shape = CardShape) { Column(Modifier.padding(20.dp), content = content) }
+        ElevatedCard(modifier, shape = CardShape, colors = colors) { Column(Modifier.padding(20.dp), content = content) }
     } else {
         val source = remember { MutableInteractionSource() }
-        ElevatedCard(onClick, modifier.heightIn(min = 48.dp).pressScale(source, pressed = 0.97f), shape = CardShape, interactionSource = source) {
+        ElevatedCard(onClick, modifier.heightIn(min = 48.dp).pressScale(source, pressed = 0.97f), shape = CardShape, colors = colors, interactionSource = source) {
             Column(Modifier.padding(20.dp), content = content)
         }
     }

@@ -279,6 +279,7 @@ class BlockerService : AccessibilityService() {
         val d = SessionEngine.decide(rule, s, now, zone)
         record(tracker.onForeground(pkg, d is Decision.Allow, now))
         // A FULL Block/Prompt now would cover the EmergencyActivity that is opening (the locked app may still be active).
+        if (d !is Decision.Allow) SessionNotifier.cancel(this, pkg)
         if (d !is Decision.Allow && suppressFull(launchingPkg, pkg, bounds == null, SystemClock.uptimeMillis(), launchingUntil)) return
         when (d) {
             is Decision.Allow -> { dismiss(); schedule(rule, pkg, now) }
@@ -407,6 +408,7 @@ class BlockerService : AccessibilityService() {
             tracker.onForeground(pkg, true, now) // midnight or emergency still active: keep going
             schedule(rule, pkg, now)
         } else {
+            SessionNotifier.cancel(this, pkg)
             performGlobalAction(GLOBAL_ACTION_HOME)
             val name = label(pkg)
             val icon = icon(pkg)
@@ -450,6 +452,8 @@ class BlockerService : AccessibilityService() {
         cancelTimer()
         var s = repo.state(pkg)
         if (tracker.pkg == pkg) s = SessionEngine.addForeground(s, ((now - tracker.start) / 1000).toInt(), now, zone)
+        val ends = listOfNotNull(s.sessionEndsAt, s.emergencyUntil).filter { it > now }.maxOrNull()
+        if (ends != null) SessionNotifier.show(this, pkg, label(pkg), ends, now)
         val at = SessionEngine.nextAlarmAt(rule, s, now, zone) ?: return
         // shortcut: Main delay pauses in deep sleep; fine because screen-off cancels it anyway
         // A cancelled timer may still run onTimer once (already queued in serial); benign, it recomputes.

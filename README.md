@@ -49,6 +49,7 @@ Sideload only; the Accessibility policy makes Play Store distribution unlikely.
 
 - **Accessibility service:** detects which app is in the foreground (window-state changes only, no polling) and draws the prompt/block screens over it. It does not read what you type or view.
 - **Device Admin:** blocks plain uninstall.
+- **Notifications:** a silent countdown while a session runs. On Android 16+ it shows as a timer chip in the status bar (Live Update).
 
 Ebb makes no network requests and declares no `INTERNET` permission (checked in the merged release manifest). Nothing leaves your device.
 

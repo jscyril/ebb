@@ -156,7 +156,7 @@ class Repo private constructor(ctx: Context) {
     val themeFlow: Flow<ThemePrefs> = ds.data.map { p ->
         ThemePrefs(
             runCatching { DarkMode.valueOf(p[Keys.DARK]!!) }.getOrDefault(DarkMode.SYSTEM),
-            runCatching { Accent.valueOf(p[Keys.ACCENT]!!) }.getOrDefault(Accent.DYNAMIC),
+            runCatching { Accent.valueOf(p[Keys.ACCENT]!!) }.getOrDefault(Accent.TIDE),
         )
     }
     suspend fun saveTheme(t: ThemePrefs) = ds.edit { it[Keys.DARK] = t.dark.name; it[Keys.ACCENT] = t.accent.name }.let {}

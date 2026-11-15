@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -163,9 +165,10 @@ fun Dashboard(contentPadding: PaddingValues, vm: InsightsVm = viewModel()) {
             val saved = remember(sessions, r) { estimatedSavedMin(sessions, r) }
             val streak = remember(today.dayKey, emergencyDays, firstUse) { streak(today.dayKey, emergencyDays, firstUse) }
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max).animateItem(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatTile(stringResource(R.string.insights_streak), pluralStringResource(R.plurals.insights_days, streak, streak), stringResource(R.string.insights_streak_caption), Modifier.weight(1f))
-                StatTile(stringResource(R.string.insights_opens), today.opens.toString(), pluralStringResource(R.plurals.insights_blocked_caption, today.blocked, today.blocked), Modifier.weight(1f))
-                StatTile(stringResource(R.string.insights_saved), stringResource(R.string.insights_saved_value, shortDuration(saved * 60L)), stringResource(R.string.insights_estimate), Modifier.weight(1f))
+                val cs = MaterialTheme.colorScheme
+                StatTile(stringResource(R.string.insights_streak), pluralStringResource(R.plurals.insights_days, streak, streak), stringResource(R.string.insights_streak_caption), cs.tertiaryContainer, Modifier.weight(1f))
+                StatTile(stringResource(R.string.insights_opens), today.opens.toString(), pluralStringResource(R.plurals.insights_blocked_caption, today.blocked, today.blocked), cs.secondaryContainer, Modifier.weight(1f))
+                StatTile(stringResource(R.string.insights_saved), stringResource(R.string.insights_saved_value, shortDuration(saved * 60L)), stringResource(R.string.insights_estimate), cs.primaryContainer, Modifier.weight(1f))
             }
         }
         item(key = "week") {
@@ -213,11 +216,12 @@ private fun HeroRing(todaySec: Long, capSec: Long, modifier: Modifier) {
 }
 
 @Composable
-private fun StatTile(label: String, value: String, caption: String, modifier: Modifier) {
-    SpringCard(modifier.fillMaxHeight()) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-        Text(value, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurface)
-        Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun StatTile(label: String, value: String, caption: String, container: Color, modifier: Modifier) {
+    SpringCard(modifier.fillMaxHeight(), container = container) {
+        val ink = LocalContentColor.current
+        Text(label, style = MaterialTheme.typography.labelMedium, color = ink.copy(alpha = 0.8f), maxLines = 2)
+        Text(value, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"), color = ink)
+        Text(caption, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = 0.8f))
     }
 }
 

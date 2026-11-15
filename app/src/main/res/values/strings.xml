@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ebb</string>
+    <string name="notif_channel">Session timer</string>
+    <string name="notif_title">%1$s session</string>
+    <string name="notif_text">Time left before the app locks</string>
     <string name="tier_minutes">%1$d min</string>
     <string name="tier_locked_hours">then locked %1$d h</string>
     <string name="tier_locked_minutes">then locked %1$d min</string>

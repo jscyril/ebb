@@ -45,7 +45,7 @@ fun Tide(modifier: Modifier, animate: Boolean, level: Float = 0.70f) {
             }
             path.lineTo(size.width, size.height)
             path.close()
-            drawPath(path, color.copy(alpha = 0.06f + i * 0.04f))
+            drawPath(path, color.copy(alpha = 0.12f + i * 0.08f))
         }
     }
 }

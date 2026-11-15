@@ -57,6 +57,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.time.ZoneId
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
 
 /**
  * Watches the foreground app, gates watched apps through [SessionEngine], tracks foreground time
@@ -476,7 +479,7 @@ class BlockerService : AccessibilityService() {
     private fun show(bounds: Rect?, sticky: Boolean, content: @Composable () -> Unit) {
         this.sticky = sticky && bounds == null
         mode = if (bounds == null) OverlayMode.FULL else OverlayMode.WINDOW
-        overlay?.show(bounds) { EbbThemeFromRepo(content) }
+        overlay?.show(bounds) { EbbThemeFromRepo { CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, content = content) } }
         audioFocus(true)
     }
 

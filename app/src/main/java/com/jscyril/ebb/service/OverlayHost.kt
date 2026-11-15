@@ -69,7 +69,7 @@ class OverlayHost(private val service: AccessibilityService, private val onBack:
         val lp = WindowManager.LayoutParams(
             b?.width() ?: WindowManager.LayoutParams.MATCH_PARENT, b?.height() ?: WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or (if (b == null) 0 else
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or (if (b == null) 0 else
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL),
             PixelFormat.TRANSLUCENT,
         )

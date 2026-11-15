@@ -56,7 +56,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private companion object { const val SPLASH_MS = 2_000L }
+    private companion object {
+        const val SPLASH_MS = 1_100L // the icon animation (~700 ms) plays out, then hand off
+    }
 
     override fun onResume() {
         super.onResume()

@@ -140,6 +140,14 @@
     <!-- Home -->
     <string name="home_today">Today</string>
     <string name="home_today_sub">on the apps you watch</string>
+    <string name="home_of_limit">of %1$s daily limit</string>
+    <string name="home_used_pct">%1$d%% of today\'s limit used</string>
+    <string name="home_trend_up">+%1$dm vs yesterday</string>
+    <string name="home_trend_down">−%1$dm vs yesterday</string>
+    <string name="home_trend_same">Same as yesterday</string>
+    <string name="home_opens">Opens today</string>
+    <string name="home_left">Time left</string>
+    <string name="home_left_caption">across all watched apps</string>
     <string name="home_watched">Watched apps</string>
     <string name="home_empty">You are not watching any apps yet.</string>
     <string name="home_empty_action">Choose apps</string>

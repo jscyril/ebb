@@ -11,7 +11,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,13 +57,21 @@ import com.jscyril.ebb.engine.AppState
 import com.jscyril.ebb.guard.Admin
 import com.jscyril.ebb.service.ServiceState
 import com.jscyril.ebb.ui.theme.EbbMotion
-import com.jscyril.ebb.ui.theme.Tide
-import com.jscyril.ebb.ui.theme.rememberReducedMotion
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.ZoneId
+import com.jscyril.ebb.data.DayTotal
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.ui.graphics.luminance
 
 class HomeVm(app: Application) : AndroidViewModel(app) {
     private val repo = Repo.get(app)
@@ -75,7 +82,8 @@ class HomeVm(app: Application) : AndroidViewModel(app) {
     val protectionOn = repo.protectionEnabledFlow.stateIn(viewModelScope, sub, true)
     val now = trustedTicker(app).stateIn(viewModelScope, sub, null)
     val zone = flow<ZoneId?> { emit(repo.zone()) }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
-    val todaySec = repo.dailyTotals(1).map { it.lastOrNull()?.seconds ?: 0L }.stateIn(viewModelScope, sub, 0L)
+    /** Yesterday and today, oldest first. */
+    val days = repo.dailyTotals(2).stateIn(viewModelScope, sub, emptyList())
 
 }
 
@@ -88,7 +96,7 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
     val protectionOn by vm.protectionOn.collectAsStateWithLifecycle()
     val now by vm.now.collectAsStateWithLifecycle()
     val zone by vm.zone.collectAsStateWithLifecycle()
-    val todaySec by vm.todaySec.collectAsStateWithLifecycle()
+    val days by vm.days.collectAsStateWithLifecycle()
     var serviceOn by remember { mutableStateOf(true) }
     var adminOn by remember { mutableStateOf(true) }
     LifecycleResumeEffect(Unit) {
@@ -123,8 +131,8 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
             )
         }
         item(key = "hero") {
-            val capSec = apps.sumOf { it.dailyCapMin.coerceAtLeast(0) * 60L }.coerceAtLeast(60)
-            Hero(todaySec, (todaySec.toFloat() / capSec).coerceIn(0f, 1f), Modifier.animateItem())
+            val capSec = apps.sumOf { it.dailyCapMin.coerceAtLeast(0) * 60L }
+            Hero(days.lastOrNull(), days.getOrNull(days.size - 2)?.takeIf { days.size == 2 }, capSec, Modifier.animateItem())
         }
         item(key = "appsTitle") { SectionTitle(stringResource(R.string.home_watched), Modifier.semantics { heading() }) }
         if (rules != null && apps.isEmpty()) item(key = "empty") {
@@ -141,22 +149,82 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
     }
 }
 
+/**
+ * Bento-style summary: one bold card with today's total, the limit and a progress bar, then two small
+ * tiles (opens/blocked, time left). Flat cards with big numbers, after the finance-dashboard look.
+ */
 @Composable
-private fun Hero(todaySec: Long, fraction: Float, modifier: Modifier) {
-    val reduced = rememberReducedMotion()
-    val level by animateFloatAsState(0.88f - 0.6f * fraction, EbbMotion.Slow(), label = "level")
+private fun Hero(today: DayTotal?, yesterday: DayTotal?, capSec: Long, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
-    val wash = remember(cs) { Brush.linearGradient(listOf(cs.primaryContainer, cs.tertiaryContainer)) }
-    ElevatedCard(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
-        Box(Modifier.fillMaxWidth().background(wash)) {
-            Tide(Modifier.matchParentSize(), animate = !reduced, level = level)
-            Column(Modifier.padding(24.dp).padding(bottom = 24.dp)) {
-                Text(stringResource(R.string.home_today), style = MaterialTheme.typography.titleMedium, color = cs.onPrimaryContainer.copy(alpha = 0.8f))
-                AnimatedContent(usageText(todaySec), transitionSpec = { fadeIn(EbbMotion.Standard()) togetherWith fadeOut(EbbMotion.Fast()) }, label = "total") {
-                    Text(it, style = MaterialTheme.typography.displayMedium, color = cs.onPrimaryContainer)
+    val sec = today?.seconds ?: 0L
+    val fraction = if (capSec > 0) (sec.toFloat() / capSec).coerceIn(0f, 1f) else 0f
+    val bar by animateFloatAsState(fraction, EbbMotion.Slow(), label = "bar")
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // A deep, saturated card in both modes: primary in light, the dark primary container in dark.
+        val dark = cs.surface.luminance() < 0.5f
+        val card = if (dark) cs.primaryContainer else cs.primary
+        val ink = if (dark) cs.onPrimaryContainer else cs.onPrimary
+        val accent = if (dark) cs.primary else cs.inversePrimary
+        Surface(Modifier.fillMaxWidth(), color = card, contentColor = ink, shape = MaterialTheme.shapes.extraLarge) {
+            Column(Modifier.padding(24.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.home_today), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    if (yesterday != null) TrendPill(sec - yesterday.seconds, ink)
                 }
-                Text(stringResource(R.string.home_today_sub), style = MaterialTheme.typography.bodyMedium, color = cs.onPrimaryContainer.copy(alpha = 0.8f))
+                AnimatedContent(usageText(sec), transitionSpec = { fadeIn(EbbMotion.Standard()) togetherWith fadeOut(EbbMotion.Fast()) }, label = "total") {
+                    Text(it, Modifier.padding(top = 12.dp), style = MaterialTheme.typography.displayMedium)
+                }
+                Text(
+                    if (capSec > 0) stringResource(R.string.home_of_limit, usageText(capSec)) else stringResource(R.string.home_today_sub),
+                    style = MaterialTheme.typography.bodyMedium, color = LocalContentColor.current.copy(alpha = 0.75f),
+                )
+                if (capSec > 0) {
+                    Text(
+                        stringResource(R.string.home_used_pct, (fraction * 100).toInt()), Modifier.padding(top = 20.dp, bottom = 8.dp),
+                        style = MaterialTheme.typography.labelLarge, color = LocalContentColor.current.copy(alpha = 0.75f),
+                    )
+                    Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(ink.copy(alpha = 0.18f))) {
+                        Box(Modifier.fillMaxHeight().fillMaxWidth(bar).clip(CircleShape).background(accent))
+                    }
+                }
             }
+        }
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MiniTile(
+                stringResource(R.string.home_opens), (today?.opens ?: 0).toString(),
+                pluralStringResource(R.plurals.insights_blocked_caption, today?.blocked ?: 0, today?.blocked ?: 0),
+                cs.surfaceContainerHigh, Modifier.weight(1f),
+            )
+            MiniTile(
+                stringResource(R.string.home_left), if (capSec > 0) usageText((capSec - sec).coerceAtLeast(0)) else "—",
+                stringResource(R.string.home_left_caption), cs.tertiaryContainer, Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** "+12m" / "−8m" vs yesterday; less is better, so less gets the calm colour. */
+@Composable
+private fun TrendPill(deltaSec: Long, ink: Color) {
+    val min = deltaSec / 60
+    val text = when {
+        min > 0 -> stringResource(R.string.home_trend_up, min)
+        min < 0 -> stringResource(R.string.home_trend_down, -min)
+        else -> stringResource(R.string.home_trend_same)
+    }
+    Surface(color = ink.copy(alpha = 0.14f), contentColor = ink, shape = CircleShape) {
+        Text(text, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun MiniTile(label: String, value: String, caption: String, color: Color, modifier: Modifier) {
+    Surface(modifier.fillMaxHeight(), color = color, shape = MaterialTheme.shapes.extraLarge) {
+        Column(Modifier.padding(20.dp)) {
+            val ink = LocalContentColor.current
+            Text(label, style = MaterialTheme.typography.labelLarge, color = ink.copy(alpha = 0.75f))
+            Text(value, Modifier.padding(top = 16.dp), style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"))
+            Text(caption, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = 0.75f))
         }
     }
 }

@@ -29,6 +29,7 @@ import com.jscyril.ebb.engine.AppRule
 import com.jscyril.ebb.engine.Decision
 import com.jscyril.ebb.engine.Reason
 import com.jscyril.ebb.engine.SessionEngine
+import com.jscyril.ebb.engine.Sites
 import com.jscyril.ebb.engine.Tier
 import com.jscyril.ebb.guard.Admin
 import com.jscyril.ebb.guard.EmergencyPass
@@ -95,6 +96,8 @@ class BlockerService : AccessibilityService() {
     private var launchingPkg: String? = null // FULL overlays for it are held back until the Activity is up
     private var launchingUntil = 0L // uptime
     private var widgetsDirty = false // a widget-visible write happened in this serial block
+    private var siteScan: Job? = null
+    private val lastHost = HashMap<String, String>() // per browser, for when its address bar is hidden (scrolled, fullscreen)
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -127,6 +130,12 @@ class BlockerService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            // Fires constantly in every app: only browsers matter (their address bar), and only debounced.
+            val p = event.packageName ?: return
+            if (BrowserUrl.isBrowser(p)) scheduleSite(300)
+            return
+        }
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             // Clicks fire constantly in every app: bail before any allocation unless it is a guard package.
             val p = event.packageName ?: return
@@ -145,7 +154,26 @@ class BlockerService : AccessibilityService() {
             guardPkg = pkg; guardCls = event.className?.toString()
             guard(retry = true)
         }
-        if (!ignored(pkg)) serial { onForeground(pkg) }
+        if (ignored(pkg)) return
+        if (BrowserUrl.isBrowser(pkg)) scheduleSite(0) else serial { onForeground(pkg) }
+    }
+
+    private fun scheduleSite(ms: Long) {
+        siteScan?.cancel()
+        siteScan = scope.launch { delay(ms); siteCheck() }
+    }
+
+    /** A browser is in front: gate it as the watched app whose website it shows, else treat it as any other app. */
+    private fun siteCheck() {
+        if (getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return
+        val root = rootInActiveWindow ?: return
+        val pkg = root.packageName?.toString()
+        val read = if (pkg != null && BrowserUrl.isBrowser(pkg)) BrowserUrl.host(root, pkg) else null
+        @Suppress("DEPRECATION") root.recycle()
+        if (pkg == null || !BrowserUrl.isBrowser(pkg)) return
+        if (read != null) lastHost[pkg] = read
+        val host = read ?: lastHost[pkg] // bar hidden or being typed in: still where they were
+        serial { onForeground(host?.let { Sites.appFor(it, activeRules(clock.now()).values) } ?: pkg) }
     }
 
     override fun onInterrupt() {}
@@ -233,6 +261,7 @@ class BlockerService : AccessibilityService() {
         @Suppress("DEPRECATION") root?.recycle()
         if (raw == packageName && overlay?.isShowing == true) return // our overlay has focus: leave it be (no flip-flop)
         val pkg = raw?.takeUnless(::ignored)
+        if (pkg != null && BrowserUrl.isBrowser(pkg)) return siteCheck()
         serial { onForeground(pkg) } // null pkg still scans the visible windows
     }
 

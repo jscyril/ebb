@@ -6,6 +6,12 @@
     <string name="test_mode_body">Rule changes apply right away: no 24 hour wait, even during a pledge.</string>
     <string name="step_size">%1$d min</string>
     <string name="cd_step_size">Change %1$s by %2$d minutes</string>
+    <string name="sites_title">Websites</string>
+    <string name="sites_body">These sites share %1$s\'s limits in Chrome, Firefox, Samsung Internet, Edge, Brave and other browsers. Other sites are never touched.</string>
+    <string name="sites_none">No websites. Only the app is limited.</string>
+    <string name="sites_hint">Add a site, e.g. instagram.com</string>
+    <string name="sites_add">Add website</string>
+    <string name="cd_remove_site">Remove %1$s</string>
     <string name="notif_channel">Session timer</string>
     <string name="notif_title">%1$s session</string>
     <string name="notif_text">Time left before the app locks</string>
@@ -145,6 +151,8 @@
     <string name="home_trend_up">+%1$dm vs yesterday</string>
     <string name="home_trend_down">−%1$dm vs yesterday</string>
     <string name="home_trend_same">Same as yesterday</string>
+    <string name="unit_h">h</string>
+    <string name="unit_m">m</string>
     <string name="home_opens">Opens today</string>
     <string name="home_left">Time left</string>
     <string name="home_left_caption">across all watched apps</string>

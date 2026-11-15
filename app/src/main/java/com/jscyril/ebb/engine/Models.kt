@@ -12,6 +12,8 @@ data class AppRule(
     val pkg: String = "",
     val tiers: List<Tier> = Defaults.TIERS,
     val dailyCapMin: Int = Defaults.DAILY_CAP_MIN,
+    /** Websites sharing this app's limits; null = the defaults in [Sites]. */
+    val domains: List<String>? = null,
 )
 @Serializable
 data class AppState(

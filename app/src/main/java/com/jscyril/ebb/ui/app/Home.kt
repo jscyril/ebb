@@ -72,6 +72,22 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.toShape
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.Canvas
 
 class HomeVm(app: Application) : AndroidViewModel(app) {
     private val repo = Repo.get(app)
@@ -150,60 +166,140 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
 }
 
 /**
- * Bento-style summary: one bold card with today's total, the limit and a progress bar, then two small
- * tiles (opens/blocked, time left). Flat cards with big numbers, after the finance-dashboard look.
+ * Bento summary. A deep hero card lit by two soft colour glows, with a big split number ("1h 12m"),
+ * a trend pill and a segmented limit bar; then two tiles: opens/blocked and a time-left ring.
  */
 @Composable
 private fun Hero(today: DayTotal?, yesterday: DayTotal?, capSec: Long, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
+    val dark = cs.surface.luminance() < 0.5f
+    val base = if (dark) cs.primaryContainer else cs.primary
+    val ink = if (dark) cs.onPrimaryContainer else cs.onPrimary
+    val glowA = if (dark) cs.tertiary else cs.tertiaryContainer
+    val glowB = if (dark) cs.primary else cs.inversePrimary
     val sec = today?.seconds ?: 0L
     val fraction = if (capSec > 0) (sec.toFloat() / capSec).coerceIn(0f, 1f) else 0f
-    val bar by animateFloatAsState(fraction, EbbMotion.Slow(), label = "bar")
+    val fill by animateFloatAsState(fraction, EbbMotion.Slow(), label = "fill")
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // A deep, saturated card in both modes: primary in light, the dark primary container in dark.
-        val dark = cs.surface.luminance() < 0.5f
-        val card = if (dark) cs.primaryContainer else cs.primary
-        val ink = if (dark) cs.onPrimaryContainer else cs.onPrimary
-        val accent = if (dark) cs.primary else cs.inversePrimary
-        Surface(Modifier.fillMaxWidth(), color = card, contentColor = ink, shape = MaterialTheme.shapes.extraLarge) {
-            Column(Modifier.padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.home_today), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                    if (yesterday != null) TrendPill(sec - yesterday.seconds, ink)
-                }
-                AnimatedContent(usageText(sec), transitionSpec = { fadeIn(EbbMotion.Standard()) togetherWith fadeOut(EbbMotion.Fast()) }, label = "total") {
-                    Text(it, Modifier.padding(top = 12.dp), style = MaterialTheme.typography.displayMedium)
-                }
-                Text(
-                    if (capSec > 0) stringResource(R.string.home_of_limit, usageText(capSec)) else stringResource(R.string.home_today_sub),
-                    style = MaterialTheme.typography.bodyMedium, color = LocalContentColor.current.copy(alpha = 0.75f),
+        Surface(Modifier.fillMaxWidth(), color = base, contentColor = ink, shape = MaterialTheme.shapes.extraLarge) {
+            Box(
+                Modifier.drawBehind {
+                    drawRect(Brush.radialGradient(listOf(glowA.copy(alpha = 0.55f), Color.Transparent), Offset(size.width * 0.95f, 0f), size.width * 0.75f))
+                    drawRect(Brush.radialGradient(listOf(glowB.copy(alpha = 0.35f), Color.Transparent), Offset(0f, size.height), size.width * 0.7f))
+                },
+            ) {
+                // Decorative expressive shape peeking in from the corner.
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(x = 36.dp, y = (-36).dp).size(150.dp).rotate(18f)
+                        .clip(MaterialShapes.Cookie9Sided.toShape()).background(ink.copy(alpha = 0.08f)),
                 )
-                if (capSec > 0) {
+                Column(Modifier.padding(24.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(36.dp).clip(CircleShape).background(ink.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(R.drawable.ic_schedule), null, Modifier.size(20.dp))
+                        }
+                        Spacer(Modifier.size(10.dp))
+                        Text(stringResource(R.string.home_today), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                        if (yesterday != null) TrendPill(sec - yesterday.seconds, ink)
+                    }
+                    AnimatedContent(sec / 60, transitionSpec = { fadeIn(EbbMotion.Standard()) togetherWith fadeOut(EbbMotion.Fast()) }, label = "total") { m ->
+                        BigDuration(m, Modifier.padding(top = 20.dp))
+                    }
                     Text(
-                        stringResource(R.string.home_used_pct, (fraction * 100).toInt()), Modifier.padding(top = 20.dp, bottom = 8.dp),
-                        style = MaterialTheme.typography.labelLarge, color = LocalContentColor.current.copy(alpha = 0.75f),
+                        if (capSec > 0) stringResource(R.string.home_of_limit, usageText(capSec)) else stringResource(R.string.home_today_sub),
+                        style = MaterialTheme.typography.bodyMedium, color = ink.copy(alpha = 0.75f),
                     )
-                    Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(ink.copy(alpha = 0.18f))) {
-                        Box(Modifier.fillMaxHeight().fillMaxWidth(bar).clip(CircleShape).background(accent))
+                    if (capSec > 0) {
+                        SegmentBar(fill, ink.copy(alpha = 0.16f), Brush.horizontalGradient(listOf(glowB, glowA)), Modifier.padding(top = 20.dp))
+                        Text(
+                            stringResource(R.string.home_used_pct, (fraction * 100).toInt()), Modifier.padding(top = 8.dp),
+                            style = MaterialTheme.typography.labelLarge, color = ink.copy(alpha = 0.75f),
+                        )
                     }
                 }
             }
         }
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MiniTile(
-                stringResource(R.string.home_opens), (today?.opens ?: 0).toString(),
-                pluralStringResource(R.plurals.insights_blocked_caption, today?.blocked ?: 0, today?.blocked ?: 0),
-                cs.surfaceContainerHigh, Modifier.weight(1f),
-            )
-            MiniTile(
-                stringResource(R.string.home_left), if (capSec > 0) usageText((capSec - sec).coerceAtLeast(0)) else "—",
-                stringResource(R.string.home_left_caption), cs.tertiaryContainer, Modifier.weight(1f),
-            )
+            val blocked = today?.blocked ?: 0
+            Tile(cs.secondaryContainer, cs.secondary, Modifier.weight(1f)) {
+                TileIcon(R.drawable.ic_lock, cs.secondary, cs.onSecondary)
+                Text(stringResource(R.string.home_opens), Modifier.padding(top = 14.dp), style = MaterialTheme.typography.labelLarge)
+                Text((today?.opens ?: 0).toString(), style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.SemiBold))
+                Text(pluralStringResource(R.plurals.insights_blocked_caption, blocked, blocked), style = MaterialTheme.typography.bodySmall)
+            }
+            Tile(cs.tertiaryContainer, cs.tertiary, Modifier.weight(1f)) {
+                val left = (capSec - sec).coerceAtLeast(0)
+                Box(contentAlignment = Alignment.Center) {
+                    MiniRing(if (capSec > 0) left.toFloat() / capSec else 0f, cs.tertiary, cs.onTertiaryContainer.copy(alpha = 0.15f), Modifier.size(44.dp))
+                }
+                Text(stringResource(R.string.home_left), Modifier.padding(top = 14.dp), style = MaterialTheme.typography.labelLarge)
+                Text(if (capSec > 0) usageText(left) else "—", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"))
+                Text(stringResource(R.string.home_left_caption), style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }
 
-/** "+12m" / "−8m" vs yesterday; less is better, so less gets the calm colour. */
+/** "1h 12m" with big digits and small units. */
+@Composable
+private fun BigDuration(minutes: Long, modifier: Modifier) {
+    val big = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.SemiBold)
+    val small = MaterialTheme.typography.headlineSmall
+    val h = stringResource(R.string.unit_h); val m = stringResource(R.string.unit_m)
+    val text = buildAnnotatedString {
+        if (minutes >= 60) { withStyle(big.toSpanStyle()) { append((minutes / 60).toString()) }; withStyle(small.toSpanStyle()) { append("$h ") } }
+        withStyle(big.toSpanStyle()) { append((minutes % 60).toString()) }; withStyle(small.toSpanStyle()) { append(m) }
+    }
+    Text(text, modifier)
+}
+
+/** 20 rounded segments filling left to right, like a level meter. */
+@Composable
+private fun SegmentBar(fraction: Float, track: Color, fill: Brush, modifier: Modifier) {
+    Canvas(modifier.fillMaxWidth().height(14.dp)) {
+        val n = 20; val gap = 4.dp.toPx()
+        val w = (size.width - gap * (n - 1)) / n
+        val lit = fraction * n
+        for (i in 0 until n) {
+            val x = i * (w + gap)
+            val r = CornerRadius(w / 2, w / 2)
+            drawRoundRect(track, Offset(x, 0f), Size(w, size.height), r)
+            val f = (lit - i).coerceIn(0f, 1f)
+            if (f > 0f) drawRoundRect(fill, Offset(x, 0f), Size(w, size.height * 1f), r, alpha = 0.35f + 0.65f * f)
+        }
+    }
+}
+
+@Composable
+private fun MiniRing(fraction: Float, color: Color, track: Color, modifier: Modifier) {
+    val f by animateFloatAsState(fraction.coerceIn(0f, 1f), EbbMotion.Slow(), label = "ring")
+    Canvas(modifier) {
+        val w = 5.dp.toPx()
+        val tl = Offset(w / 2, w / 2); val sz = Size(size.width - w, size.height - w)
+        drawArc(track, 0f, 360f, false, tl, sz, style = Stroke(w))
+        drawArc(color, -90f, 360f * f, false, tl, sz, style = Stroke(w, cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+private fun TileIcon(icon: Int, bg: Color, fg: Color) =
+    Box(Modifier.size(44.dp).clip(MaterialShapes.Cookie6Sided.toShape()).background(bg), contentAlignment = Alignment.Center) {
+        Icon(painterResource(icon), null, Modifier.size(22.dp), tint = fg)
+    }
+
+/** Small bento tile: container colour with a soft glow of [glow] from the top-left. */
+@Composable
+private fun Tile(color: Color, glow: Color, modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier.fillMaxHeight(), color = color, shape = MaterialTheme.shapes.extraLarge) {
+        Column(
+            Modifier.drawBehind { drawRect(Brush.radialGradient(listOf(glow.copy(alpha = 0.22f), Color.Transparent), Offset.Zero, size.maxDimension)) }
+                .padding(20.dp),
+            content = content,
+        )
+    }
+}
+
+/** "+12m" / "−8m" vs yesterday. */
 @Composable
 private fun TrendPill(deltaSec: Long, ink: Color) {
     val min = deltaSec / 60
@@ -214,18 +310,6 @@ private fun TrendPill(deltaSec: Long, ink: Color) {
     }
     Surface(color = ink.copy(alpha = 0.14f), contentColor = ink, shape = CircleShape) {
         Text(text, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
-    }
-}
-
-@Composable
-private fun MiniTile(label: String, value: String, caption: String, color: Color, modifier: Modifier) {
-    Surface(modifier.fillMaxHeight(), color = color, shape = MaterialTheme.shapes.extraLarge) {
-        Column(Modifier.padding(20.dp)) {
-            val ink = LocalContentColor.current
-            Text(label, style = MaterialTheme.typography.labelLarge, color = ink.copy(alpha = 0.75f))
-            Text(value, Modifier.padding(top = 16.dp), style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"))
-            Text(caption, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = 0.75f))
-        }
     }
 }
 

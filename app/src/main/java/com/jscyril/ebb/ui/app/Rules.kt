@@ -56,6 +56,16 @@ import com.jscyril.ebb.ui.theme.BigButton
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.jscyril.ebb.engine.Sites
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.InputChip
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 class RulesVm(private val app: Application) : AndroidViewModel(app) {
     private val repo = Repo.get(app)
@@ -179,6 +189,7 @@ private fun AppRuleCard(
             AnimatedVisibility(open) {
                 Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     RuleEditor(draft.tiers, draft.dailyCapMin, { t, c -> draft = draft.copy(tiers = t, dailyCapMin = c) })
+                    SitesEditor(Sites.of(draft), name) { draft = draft.copy(domains = it) }
                     val proposed = current.copy(apps = current.apps + (rule.pkg to draft.copy(tiers = draft.tiers.sortedBy { it.sessionMin })))
                     val changed = draft != rule
                     val looser = changed && isLooser(current, proposed)
@@ -231,3 +242,38 @@ private fun pendingSummary(cur: Rules, new: Rules): String {
     }
     return parts.joinToString(" · ")
 }
+
+/** The websites that share this app's limits, so its browser version is gated too. Removing one is a loosening. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SitesEditor(sites: List<String>, appName: String, onChange: (List<String>) -> Unit) {
+    var input by rememberSaveable { mutableStateOf("") }
+    val parsed = Sites.normalize(input)
+    val add = { if (parsed != null && parsed !in sites) onChange(sites + parsed); input = "" }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.sites_title), style = MaterialTheme.typography.titleSmall)
+        Body(stringResource(R.string.sites_body, appName))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (d in sites) {
+                InputChip(
+                    selected = false, onClick = { onChange(sites - d) }, label = { Text(d) },
+                    trailingIcon = { Icon(painterResource(R.drawable.ic_close), stringResource(R.string.cd_remove_site, d), Modifier.size(18.dp)) },
+                )
+            }
+            if (sites.isEmpty()) Body(stringResource(R.string.sites_none))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                input, { input = it }, Modifier.weight(1f), singleLine = true,
+                placeholder = { Text(stringResource(R.string.sites_hint)) },
+                isError = input.isNotBlank() && parsed == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { add() }),
+            )
+            FilledTonalIconButton({ add() }, Modifier.size(48.dp), enabled = parsed != null && parsed !in sites) {
+                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.sites_add))
+            }
+        }
+    }
+}
+

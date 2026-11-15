@@ -78,6 +78,14 @@ object SelfToggle {
         if (!isOn(ctx)) set(ctx, true)
     }
 
+    /** Every 15 min, non-waking: catches the service being switched off while Ebb's process isn't running. */
+    fun scheduleCheck(ctx: Context) {
+        if (!canWrite(ctx)) return
+        val am = ctx.getSystemService(AlarmManager::class.java) ?: return
+        val pi = PendingIntent.getBroadcast(ctx, 1, Intent(ctx, SelfToggleReceiver::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_FIFTEEN_MINUTES, AlarmManager.INTERVAL_FIFTEEN_MINUTES, pi)
+    }
+
     /** Elapsed-realtime alarm, so a clock change can't stretch a pause. */
     fun schedule(ctx: Context, inMs: Long) {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
@@ -89,10 +97,10 @@ object SelfToggle {
     }
 }
 
-/** Pause end, boot and app updates (which turn the service off on some phones): [SelfToggle.heal]. */
+/** Pause end, the 15-min check, boot and app updates (which turn the service off on some phones): [SelfToggle.heal]. */
 class SelfToggleReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         val done = goAsync()
-        CoroutineScope(Dispatchers.IO).launch { try { SelfToggle.heal(ctx) } finally { done.finish() } }
+        CoroutineScope(Dispatchers.IO).launch { try { SelfToggle.heal(ctx); SelfToggle.scheduleCheck(ctx) } finally { done.finish() } }
     }
 }

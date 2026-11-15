@@ -118,6 +118,7 @@ class BlockerService : AccessibilityService() {
     override fun onServiceConnected() {
         instance = this
         Grayscale.set(this, false) // undo a grey left by a crash
+        SelfToggle.scheduleCheck(this)
         repo = Repo.get(this)
         clock = TrustedNow(this, repo, scope)
         overlay = OverlayHost(this, ::goHome)

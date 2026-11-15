@@ -116,63 +116,7 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ./gradlew assembleRelease
 ```
 
-The debug build installs alongside the release as "Ebb Debug" and has a **Test mode** switch in Settings: rule changes apply instantly, with no 24 h wait and no pledge refusal. It is stripped from release builds.
-
-## Manual device test checklist
-
-Overlays, the guard and widgets can't be unit-tested; check on a device.
-
-**Blocker**
-- [ ] Open a watched app: the prompt appears and the app is unusable behind it. Back goes Home; "Not now" goes Home.
-- [ ] Pick a tier: the session runs. At the end "Time's up" shows and you are sent Home. Reopening shows the block screen with the unlock time.
-- [ ] Reach the daily cap: blocked until midnight.
-- [ ] Set the clock back or forward during a lockout: it does not shorten.
-- [ ] Reboot mid-lockout: still locked.
-- [ ] Screen off then unlock straight into a watched app: it is gated. The keyboard and notification shade don't end a session.
-- [ ] Picture-in-picture and split-screen: a locked app is covered, not usable in a small window.
-- [ ] While locked, the block screen clears when the lock expires.
-
-**Overlays**
-- [ ] Animations (scrim, springing sheet, staggered chips, draining ring) are smooth. Digits don't jiggle. 12h/24h follows the system.
-- [ ] Looks right in dark, light, AMOLED and each accent; landscape and small phones fit; covers status and nav bars.
-- [ ] Remove animations: waves static, entrances are quick fades.
-- [ ] TalkBack: ring reads once, chips read as radio buttons, nothing announces every second.
-
-**Emergency**
-- [ ] Block > Emergency opens its own screen, not in recents. Can't proceed for 60 s; rotating does not reset it; leaving and returning restarts it.
-- [ ] After 60 s the keyboard appears and the layout lifts above it. Confirm enables only on the exact phrase.
-- [ ] Confirm opens the app for 10 min, the pass count drops by 1, Time's up appears at the end.
-
-**Guard**
-- [ ] With the service on, these eject you Home with a toast: Ebb's app info, uninstall dialog, Accessibility > Ebb, Device Admin page (when active), Usage access and battery pages for Ebb.
-- [ ] Activating Device Admin from onboarding does not eject. Unrelated Settings pages are not ejected.
-- [ ] With a pledge: Date & time, Developer options and Reset eject. Without one they don't.
-- [ ] `adb uninstall` still works (known hole).
-
-**Pledge, rules and disable**
-- [ ] Onboarding: Continue stays disabled until apps, tiers, Admin and the service are set. State updates live after returning from Settings. Picked apps survive a process kill.
-- [ ] Pledge passcode shows in groups of 4, lock-in needs the checkbox. A wrong code gives a 30 s lockout; the right code ends the pledge.
-- [ ] Tightening a rule saves immediately. Loosening shows a pending card with a 24 h countdown and can be cancelled. During a pledge loosening is refused.
-- [ ] Turn protection off: 48 h countdown, cancellable; after it, the phrase is required, then Admin deactivates. After 72 h unused, the request shows as expired.
-
-**Dashboard**
-- [ ] Ring sweeps on first open; the tiles are equal height at large font scales.
-- [ ] Tapping a bar shows a tooltip and updates "By app". The cap guide sits at the summed cap.
-- [ ] Heatmap zero cells are visible in light, dark and AMOLED; the card height does not change when tapping cells.
-- [ ] Empty state on a fresh install; upgrade over an older install keeps data.
-- [ ] Remove animations: charts show final state. TalkBack reads each chart summary.
-
-**Widgets**
-- [ ] Both widgets add and render in day and night; Today resizes through 2x2, 2x1, 4x1, 4x2; Apps follows its height.
-- [ ] Starting a session updates Apps within about 2 s. Lock and unlock flip the widget when the device next wakes. Daily cap and midnight reset show correctly.
-- [ ] Theme, accent and wallpaper changes re-theme the widgets. Tapping opens Ebb. TalkBack reads full sentences.
-- [ ] `adb shell dumpsys alarm | grep com.jscyril.ebb` shows at most one non-waking RTC alarm, and none with no widgets placed.
-- [ ] After a reboot, time change or time zone change, the widgets refresh.
-
-**Theme and splash**
-- [ ] Fresh install: no white flash; the splash wave rises on API 31+, a static icon on 29/30; the saved theme is used from the first frame.
-- [ ] Theme and accent switch live, including AMOLED and dynamic colour. The themed (monochrome) icon looks right.
-- [ ] Predictive back on API 34+ previews between tabs and onboarding steps.
+The debug build installs alongside the release as "Ebb Debug" and has a **Test mode** switch in Settings: rule changes apply instantly, with no 24 h wait and no pledge refusal, and turning protection off skips the 48 h wait. It is stripped from release builds.
 
 ## License
 

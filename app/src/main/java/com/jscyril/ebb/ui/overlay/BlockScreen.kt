@@ -44,12 +44,6 @@ import com.jscyril.ebb.ui.theme.rememberReducedMotion
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlin.random.Random
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.CircularWavyProgressIndicator
 
 /**
  * The app is locked until [until]. [now] is trusted time at show; [lockedFrom] is when the lock began
@@ -121,7 +115,6 @@ fun BlockScreen(
 private fun Countdown(clock: State<Long>, until: Long) =
     Text(formatRemaining(until - clock.value), style = MaterialTheme.typography.displayMedium)
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 /** Ring that fills in from empty on show, then follows the clock with a slow spring; it only redraws. */
 @Composable
 private fun LockRing(clock: State<Long>, from: Long, until: Long, reduced: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
@@ -130,14 +123,5 @@ private fun LockRing(clock: State<Long>, from: Long, until: Long, reduced: Boole
         snapshotFlow { ringProgress(clock.value, from, until) }
             .collectLatest { if (reduced) p.snapTo(it) else p.animateTo(it, EbbMotion.Slow()) }
     }
-    // Material 3 Expressive wavy ring: the "snake" travels round as the lock drains.
-    val stroke = with(LocalDensity.current) { Stroke(8.dp.toPx(), cap = StrokeCap.Round) }
-    Box(modifier, contentAlignment = Alignment.Center) {
-        CircularWavyProgressIndicator(
-            progress = { p.value }, modifier = Modifier.fillMaxSize(),
-            stroke = stroke, trackStroke = stroke, wavelength = 36.dp,
-            amplitude = { if (reduced) 0f else 1f },
-        )
-        content()
-    }
+    Ring({ p.value }, modifier, stroke = 8.dp) { content() }
 }

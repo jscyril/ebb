@@ -38,6 +38,10 @@ android {
     }
 
     buildTypes {
+        // A separate "Ebb Debug" app that can sit next to the release one; only it shows the test-mode toggle.
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             // Without keystore.properties the APK is debug-signed: installable locally, NOT for distribution.
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
@@ -53,7 +57,7 @@ android {
         checkReleaseBuilds = true
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 }
 
 dependencies {

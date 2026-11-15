@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ebb</string>
-    <string name="quick_add">+%1$d</string>
-    <string name="cd_add_minutes">Add %1$d minutes to %2$s</string>
+    <string name="set_test">Testing (debug build only)</string>
+    <string name="test_mode">Test mode</string>
+    <string name="test_mode_body">Rule changes apply right away: no 24 hour wait, even during a pledge.</string>
+    <string name="step_size">%1$d min</string>
+    <string name="cd_step_size">Change %1$s by %2$d minutes</string>
     <string name="notif_channel">Session timer</string>
     <string name="notif_title">%1$s session</string>
     <string name="notif_text">Time left before the app locks</string>

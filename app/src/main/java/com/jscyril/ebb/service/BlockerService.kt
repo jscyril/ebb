@@ -429,7 +429,8 @@ class BlockerService : AccessibilityService() {
 
     /** Watched rules after maturing pending changes; empty while not [guarding]. */
     private suspend fun activeRules(now: Long): Map<String, AppRule> {
-        val (active, action) = repo.maturePending(now) // a pledge drops the pending change: no loosening lands during one
+        // A pledge drops the pending change: no loosening lands during one. Test mode (debug only) lands it now.
+        val (active, action) = repo.maturePending(if (repo.testModeFlow.first()) Long.MAX_VALUE else now)
         if (action != MatureAction.Keep) widgetsDirty = true
         return if (guarding()) active.apps else emptyMap()
     }

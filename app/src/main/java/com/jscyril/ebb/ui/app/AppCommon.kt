@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -50,6 +53,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.util.Date
+import kotlinx.coroutines.flow.first
 
 /** Trusted now, re-emitted every [periodMs]; drives countdowns and statuses on the app screens. */
 fun trustedTicker(ctx: Context, periodMs: Long = 30_000): Flow<Long> = flow {
@@ -58,7 +62,10 @@ fun trustedTicker(ctx: Context, periodMs: Long = 30_000): Flow<Long> = flow {
 
 /** Applies a matured pending change, if any. The service does the same on each event. */
 suspend fun maturePending(ctx: Context): Rules {
-    val (rules, action) = Repo.get(ctx).maturePending(TrustedNow.peek(ctx))
+    val repo = Repo.get(ctx)
+    // Test mode (debug only): any waiting change lands right away.
+    val now = if (repo.testModeFlow.first()) Long.MAX_VALUE else TrustedNow.peek(ctx)
+    val (rules, action) = repo.maturePending(now)
     if (action == MatureAction.Apply) rulesChanged(ctx)
     return rules
 }
@@ -82,7 +89,10 @@ suspend fun submitRules(ctx: Context, proposed: Rules): SubmitResult {
         val current = maturePending(ctx)
         val now = TrustedNow.peek(ctx)
         val pledge = repo.pledge()
-        val (rules, pending) = ChangeQueue.submit(current, proposed, now)
+        val (queued, waiting) = ChangeQueue.submit(current, proposed, now)
+        val test = repo.testModeFlow.first() // debug only: no 24 h wait, no pledge refusal
+        val rules = if (test) waiting?.newRules ?: queued else queued
+        val pending = if (test) null else waiting
         if (!allowSubmit(pending != null, Pledge.isActive(pledge, now))) return SubmitResult.RefusedPledge(pledge!!.endsAt)
         // Compare-and-set: if the service changed the rules meanwhile, decide again against the new ones.
         if (!repo.saveIfRulesUnchanged(current, rules.takeIf { pending == null }, pending)) continue
@@ -195,34 +205,36 @@ fun usageText(seconds: Long): String {
 fun Stepper(
     label: String, value: Int, onChange: (Int) -> Unit, min: Int, max: Int, step: Int,
     format: @Composable (Int) -> String, modifier: Modifier = Modifier, enabled: Boolean = true, upEnabled: Boolean = true,
-    quick: List<Int> = emptyList(),
+    steps: List<Int> = emptyList(),
 ) {
     val shown = format(value)
+    // With [steps], bubbles below pick how far − and + move (plain add/subtract); otherwise they snap by [step].
+    var size by rememberSaveable { mutableIntStateOf(steps.firstOrNull() ?: step) }
+    val down = if (steps.isEmpty()) stepDown(value, step, min) else maxOf(min, value - size)
+    val up = if (steps.isEmpty()) stepUp(value, step, max) else minOf(max, value + size)
     Column(modifier) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        FilledTonalIconButton({ onChange(stepDown(value, step, min)) }, Modifier.size(48.dp), enabled = enabled && value > min) {
-            Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.cd_decrease, label))
-        }
-        Text(
-            shown, Modifier.widthIn(min = 72.dp).semantics { liveRegion = LiveRegionMode.Polite },
-            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), textAlign = TextAlign.Center,
-        )
-        FilledTonalIconButton({ onChange(stepUp(value, step, max)) }, Modifier.size(48.dp), enabled = enabled && upEnabled && value < max) {
-            Icon(painterResource(R.drawable.ic_add), stringResource(R.string.cd_increase, label))
-        }
-    }
-    // Quick-add bubbles for bigger jumps; the ± buttons above move by [step].
-    if (quick.isNotEmpty()) Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (q in quick) {
-            val cd = stringResource(R.string.cd_add_minutes, q, label)
-            SuggestionChip(
-                { onChange(minOf(max, value + q)) }, { Text(stringResource(R.string.quick_add, q)) },
-                Modifier.semantics { contentDescription = cd }, enabled = enabled && upEnabled && value < max,
-                shape = CircleShape,
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            FilledTonalIconButton({ onChange(down) }, Modifier.size(48.dp), enabled = enabled && value > min) {
+                Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.cd_decrease, label))
+            }
+            Text(
+                shown, Modifier.widthIn(min = 72.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), textAlign = TextAlign.Center,
             )
+            FilledTonalIconButton({ onChange(up) }, Modifier.size(48.dp), enabled = enabled && upEnabled && value < max) {
+                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.cd_increase, label))
+            }
         }
-    }
+        if (steps.isNotEmpty()) Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for (q in steps) {
+                val cd = stringResource(R.string.cd_step_size, label, q)
+                FilterChip(
+                    q == size, { size = q }, { Text(stringResource(R.string.step_size, q)) },
+                    Modifier.semantics { contentDescription = cd }, enabled = enabled, shape = CircleShape,
+                )
+            }
+        }
     }
 }
 

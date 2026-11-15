@@ -103,8 +103,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.jscyril.ebb.BuildConfig
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.selection.toggleable
 
 class SettingsVm(private val app: Application) : AndroidViewModel(app) {
+    val testMode = Repo.get(app).testModeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    fun setTestMode(on: Boolean) = viewModelScope.launch {
+        Repo.get(app).setTestMode(on)
+        if (on) maturePending(app) // apply anything already waiting
+    }
     private val repo = Repo.get(app)
     private val sub = SharingStarted.WhileSubscribed(5_000)
     val theme = repo.themeFlow.stateIn(viewModelScope, sub, ThemePrefs())
@@ -177,6 +185,7 @@ fun SettingsTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: 
         rules?.let { r -> Card { PassesSection(r.passesPerMonth, pledgeActive, vm, onMessage) } }
         Card { PledgeSection(vm, pledgeActive) }
         Card { ProtectionSection(vm, pledgeActive) }
+        if (BuildConfig.DEBUG) Card { TestModeSection(vm) }
         Card { AboutSection() }
     }
 }
@@ -410,6 +419,20 @@ private fun ProtectionSection(vm: SettingsVm, pledgeActive: Boolean) {
                 }
             }
         }
+    }
+}
+
+/** Debug builds only: lets rule changes apply at once so everything can be tried without waiting. */
+@Composable
+private fun TestModeSection(vm: SettingsVm) {
+    val on by vm.testMode.collectAsStateWithLifecycle()
+    SectionTitle(stringResource(R.string.set_test), Modifier.semantics { heading() })
+    Row(Modifier.fillMaxWidth().toggleable(on, role = Role.Switch) { vm.setTestMode(it) }.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.test_mode), style = MaterialTheme.typography.bodyLarge)
+            Body(stringResource(R.string.test_mode_body))
+        }
+        Switch(on, null)
     }
 }
 

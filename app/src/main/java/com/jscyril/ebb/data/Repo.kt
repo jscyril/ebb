@@ -1,5 +1,7 @@
 package com.jscyril.ebb.data
 
+import com.jscyril.ebb.BuildConfig
+
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -166,6 +168,10 @@ class Repo private constructor(ctx: Context) {
 
     val protectionEnabledFlow: Flow<Boolean> = ds.data.map { it[Keys.PROTECTION] != "false" }
     suspend fun setProtectionEnabled(on: Boolean) = put(Keys.PROTECTION, on.toString()) { it }
+
+    /** Debug builds only: rule changes skip the 24 h wait. Always false in release, whatever is stored. */
+    val testModeFlow: Flow<Boolean> = ds.data.map { BuildConfig.DEBUG && it[Keys.TEST_MODE] == "true" }
+    suspend fun setTestMode(on: Boolean) = put(Keys.TEST_MODE, on.toString()) { it }
 
     // ---- usage analytics
     suspend fun logSession(pkg: String, start: Long, end: Long, plannedMin: Int, kind: Kind) {

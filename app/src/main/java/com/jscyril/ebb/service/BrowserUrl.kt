@@ -21,18 +21,51 @@ object BrowserUrl {
     /** Allocation-free check for the hot event path. */
     fun isBrowser(pkg: CharSequence): Boolean = BARS.keys.any { it.contentEquals(pkg) }
 
+    /** Address-bar ids, also matched by suffix, for browsers whose bar isn't a classic View (Firefox 160+ is Compose). */
+    private val BAR_NAMES = setOf(
+        "ADDRESSBAR_URL_BOX", "url_bar", "mozac_browser_toolbar_url_view", "location_bar_edit_text",
+        "url_field", "omnibarTextInput", "display_url",
+    )
+
     /**
      * Host in [root]'s address bar, or null when it can't be read or the user is typing in it
      * (typed text is not where they are yet). Recycles every node it obtains.
      */
     fun host(root: AccessibilityNodeInfo, pkg: String): String? {
+        // Fast path: classic View ids resolve directly.
         for (id in BARS[pkg].orEmpty()) {
             val nodes = runCatching { root.findAccessibilityNodeInfosByViewId(id) }.getOrNull().orEmpty()
             val bar = nodes.firstOrNull()
-            val text = bar?.takeUnless { it.isFocused }?.text?.toString()
+            val h = bar?.let(::read)
             @Suppress("DEPRECATION") nodes.forEach { it.recycle() }
-            if (bar != null) return text?.let(Sites::host)
+            if (bar != null) return h
         }
-        return null
+        // Compose toolbars: walk the tree (not into the page) for a node tagged as the address bar.
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        for (i in 0 until root.childCount) root.getChild(i)?.let(queue::add)
+        var seen = 0
+        var found: String? = null
+        var hit = false
+        while (queue.isNotEmpty()) {
+            val n = queue.removeFirst()
+            seen++
+            val id = n.viewIdResourceName
+            if (!hit && id != null && BAR_NAMES.any { id == it || id.endsWith("/$it") }) { hit = true; found = read(n) }
+            if (!hit && seen < MAX_NODES && n.className?.toString() != "android.webkit.WebView") {
+                for (i in 0 until n.childCount) n.getChild(i)?.let(queue::add)
+            }
+            @Suppress("DEPRECATION") n.recycle()
+        }
+        return found
     }
+
+    /** The bar's text, or its description (" instagram.com. Search or enter address"): the first word is the site. */
+    private fun read(bar: AccessibilityNodeInfo): String? {
+        if (bar.isFocused) return null
+        val raw = bar.text?.toString()?.takeIf { it.isNotBlank() } ?: bar.contentDescription?.toString() ?: return null
+        val first = raw.trim().split(Regex("\\s+")).firstOrNull()?.trimEnd('.') ?: return null
+        return Sites.host(first)
+    }
+
+    private const val MAX_NODES = 200
 }

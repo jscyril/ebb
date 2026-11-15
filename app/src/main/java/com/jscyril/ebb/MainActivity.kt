@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.jscyril.ebb.data.Repo
 import com.jscyril.ebb.data.ThemePrefs
 import com.jscyril.ebb.ui.app.EbbRoot
+import com.jscyril.ebb.ui.app.backfillNames
 import com.jscyril.ebb.ui.app.maturePending
 import com.jscyril.ebb.ui.theme.EbbTheme
 import kotlinx.coroutines.flow.combine
@@ -62,6 +63,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        lifecycleScope.launch { runCatching { maturePending(this@MainActivity) } }
+        lifecycleScope.launch { runCatching { maturePending(this@MainActivity); backfillNames(this@MainActivity) } }
     }
 }

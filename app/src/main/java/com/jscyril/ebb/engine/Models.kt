@@ -14,6 +14,8 @@ data class AppRule(
     val dailyCapMin: Int = Defaults.DAILY_CAP_MIN,
     /** Websites sharing this app's limits; null = the defaults in [Sites]. */
     val domains: List<String>? = null,
+    /** The app's name when it was added, so an uninstalled app still reads well (its limits stay). */
+    val name: String? = null,
 )
 @Serializable
 data class AppState(

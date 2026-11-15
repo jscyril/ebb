@@ -41,9 +41,10 @@ import com.jscyril.ebb.ui.theme.BigButton
 import com.jscyril.ebb.ui.theme.EbbMotion
 import com.jscyril.ebb.ui.theme.Tide
 import com.jscyril.ebb.ui.theme.rememberReducedMotion
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlin.random.Random
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 
 /**
  * The app is locked until [until]. [now] is trusted time at show; [lockedFrom] is when the lock began
@@ -115,13 +116,20 @@ fun BlockScreen(
 private fun Countdown(clock: State<Long>, until: Long) =
     Text(formatRemaining(until - clock.value), style = MaterialTheme.typography.displayMedium)
 
-/** Ring that fills in from empty on show, then follows the clock with a slow spring; it only redraws. */
+/**
+ * Ring that springs in to where the lock is now, then glides on linearly every frame until it is full at [until]
+ * (a smooth loading bar, not a once-a-second tick). Only redraws; the countdown text alone follows the clock.
+ */
 @Composable
 private fun LockRing(clock: State<Long>, from: Long, until: Long, reduced: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
     val p = remember { Animatable(if (reduced) ringProgress(clock.value, from, until) else 0f) }
     LaunchedEffect(from, until) {
-        snapshotFlow { ringProgress(clock.value, from, until) }
-            .collectLatest { if (reduced) p.snapTo(it) else p.animateTo(it, EbbMotion.Slow()) }
+        val now = clock.value
+        val start = ringProgress(now, from, until)
+        if (reduced) { p.snapTo(start); return@LaunchedEffect }
+        p.animateTo(start, EbbMotion.Slow())
+        val left = (until - clock.value).coerceAtLeast(0L)
+        p.animateTo(1f, tween(left.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), easing = LinearEasing))
     }
     Ring({ p.value }, modifier, stroke = 8.dp) { content() }
 }

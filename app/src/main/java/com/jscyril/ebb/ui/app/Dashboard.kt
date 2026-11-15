@@ -302,5 +302,6 @@ private fun HoursCard(hourly: IntArray, modifier: Modifier) {
             { selected = if (selected == it) null else it }, Modifier.padding(top = 12.dp),
         )
         if (peak != null) Body(stringResource(R.string.insights_peak, hourName(peak)), Modifier.padding(top = 4.dp))
+        Text(stringResource(R.string.insights_hours_key), Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

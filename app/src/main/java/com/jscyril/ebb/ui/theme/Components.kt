@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,11 +71,11 @@ fun SpringCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, con
     val colors = if (container == Color.Unspecified) CardDefaults.elevatedCardColors()
     else CardDefaults.elevatedCardColors(containerColor = container, contentColor = contentColorFor(container))
     if (onClick == null) {
-        ElevatedCard(modifier, shape = CardShape, colors = colors) { Column(Modifier.padding(20.dp), content = content) }
+        ElevatedCard(modifier, shape = CardShape, colors = colors) { Column(Modifier.fillMaxWidth().padding(20.dp), content = content) }
     } else {
         val source = remember { MutableInteractionSource() }
         ElevatedCard(onClick, modifier.heightIn(min = 48.dp).pressScale(source, pressed = 0.97f), shape = CardShape, colors = colors, interactionSource = source) {
-            Column(Modifier.padding(20.dp), content = content)
+            Column(Modifier.fillMaxWidth().padding(20.dp), content = content)
         }
     }
 }

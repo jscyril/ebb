@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.util.Date
 import kotlinx.coroutines.flow.first
+import com.jscyril.ebb.engine.AppNames
 
 /** Trusted now, re-emitted every [periodMs]; drives countdowns and statuses on the app screens. */
 fun trustedTicker(ctx: Context, periodMs: Long = 30_000): Flow<Long> = flow {
@@ -132,7 +133,9 @@ object Apps {
 
     fun label(ctx: Context, pkg: String): String = runCatching {
         ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString()
-    }.getOrDefault(pkg)
+    }.getOrDefault(AppNames[pkg] ?: pkg)
+
+    fun isInstalled(ctx: Context, pkg: String): Boolean = runCatching { ctx.packageManager.getApplicationInfo(pkg, 0) }.isSuccess
 
     suspend fun icon(ctx: Context, pkg: String): ImageBitmap? = icons[pkg] ?: withContext(Dispatchers.Default) {
         runCatching { ctx.packageManager.getApplicationIcon(pkg).toBitmap(ICON_PX, ICON_PX).asImageBitmap() }.getOrNull()
@@ -246,3 +249,12 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) =
 @Composable
 fun Body(text: String, modifier: Modifier = Modifier) =
     Text(text, modifier, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+/** Saves each installed watched app's name into its rule, so it still shows by name after an uninstall. */
+suspend fun backfillNames(ctx: Context) {
+    val repo = Repo.get(ctx)
+    val missing = repo.rules().apps.values.filter { it.name == null && Apps.isInstalled(ctx, it.pkg) }
+    if (missing.isEmpty()) return
+    val names = missing.associate { it.pkg to Apps.label(ctx, it.pkg) }
+    repo.updateRules { r -> r.copy(apps = r.apps.mapValues { (pkg, rule) -> if (rule.name == null) names[pkg]?.let { rule.copy(name = it) } ?: rule else rule }) }
+}

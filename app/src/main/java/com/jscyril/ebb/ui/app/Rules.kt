@@ -156,7 +156,7 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
                     {
                         // A new app's rule is a template copy; adding a watched app is tightening, so it saves at once.
                         val template = current.apps.values.firstOrNull() ?: AppRule()
-                        vm.submit(current.copy(apps = current.apps + picked.associateWith { template.copy(pkg = it) }), onMessage)
+                        vm.submit(current.copy(apps = current.apps + picked.associateWith { template.copy(pkg = it, name = Apps.label(ctx, it), domains = null) }), onMessage)
                         adding = false
                     },
                     Modifier.fillMaxWidth().padding(vertical = 12.dp), enabled = picked.isNotEmpty(),

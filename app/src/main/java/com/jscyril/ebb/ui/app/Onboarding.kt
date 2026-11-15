@@ -100,7 +100,7 @@ class OnboardingVm(private val app: Application) : AndroidViewModel(app) {
 
     fun toggle(pkg: String) = edit { r ->
         if (pkg in r.apps) r.copy(apps = r.apps - pkg)
-        else r.copy(apps = r.apps + (pkg to template(r).copy(pkg = pkg)))
+        else r.copy(apps = r.apps + (pkg to template(r).copy(pkg = pkg, name = Apps.label(app, pkg), domains = null)))
     }
 
     fun setTemplate(tiers: List<Tier>, cap: Int) = edit { r -> r.copy(apps = r.apps.mapValues { it.value.copy(tiers = tiers, dailyCapMin = cap) }) }

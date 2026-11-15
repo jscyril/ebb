@@ -61,6 +61,7 @@ import java.time.ZoneId
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.CompositionLocalProvider
+import com.jscyril.ebb.engine.AppNames
 
 /**
  * Watches the foreground app, gates watched apps through [SessionEngine], tracks foreground time
@@ -536,7 +537,7 @@ class BlockerService : AccessibilityService() {
 
     private fun label(pkg: String): String = runCatching {
         packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-    }.getOrDefault(pkg)
+    }.getOrDefault(AppNames[pkg] ?: pkg)
 
     /** Small launcher icon for the overlays, rendered off the main thread and cached. */
     private suspend fun icon(pkg: String): ImageBitmap? = icons[pkg] ?: withContext(Dispatchers.Default) {

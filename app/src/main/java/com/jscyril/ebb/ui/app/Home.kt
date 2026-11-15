@@ -323,6 +323,9 @@ private fun AppRow(pkg: String, status: AppStatus?, modifier: Modifier) {
             Column(Modifier.weight(1f)) {
                 Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 AnimatedContent(status, label = "status") { s -> if (s != null) StatusChip(s) }
+                val ctx = LocalContext.current
+                val installed = remember(pkg) { Apps.isInstalled(ctx, pkg) }
+                if (!installed) Body(stringResource(R.string.app_not_installed), Modifier.padding(top = 4.dp))
             }
         }
     }

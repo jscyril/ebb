@@ -6,6 +6,7 @@
     <string name="test_mode_body">Rule changes apply right away: no 24 hour wait, even during a pledge.</string>
     <string name="step_size">%1$d min</string>
     <string name="cd_step_size">Change %1$s by %2$d minutes</string>
+    <string name="app_not_installed">Not installed. Its limits stay and apply again if you reinstall it.</string>
     <string name="sites_title">Websites</string>
     <string name="sites_body">These sites share %1$s\'s limits in Chrome, Firefox, Samsung Internet, Edge, Brave and other browsers. Other sites are never touched.</string>
     <string name="sites_none">No websites. Only the app is limited.</string>
@@ -128,10 +129,11 @@
     <string name="insights_when_none">no time recorded</string>
     <string name="insights_hour_item">%1$s · %2$s</string>
     <string name="insights_peak">You scroll most around %1$s</string>
-    <string name="insights_hour_12a">12a</string>
-    <string name="insights_hour_6a">6a</string>
-    <string name="insights_hour_12p">12p</string>
-    <string name="insights_hour_6p">6p</string>
+    <string name="insights_hours_key">Each box is one hour, brighter means more scrolling. Top row is midnight to noon, bottom row noon to midnight. Tap a box for the exact time.</string>
+    <string name="insights_hour_12a">12 AM</string>
+    <string name="insights_hour_6a">6 AM</string>
+    <string name="insights_hour_12p">12 PM</string>
+    <string name="insights_hour_6p">6 PM</string>
     <string name="insights_empty_title">Nothing to show yet</string>
     <string name="insights_empty_body">Use your phone as usual. Your trends, streak and time saved will appear here after the first watched app opens.</string>
     <plurals name="a11y_hours">

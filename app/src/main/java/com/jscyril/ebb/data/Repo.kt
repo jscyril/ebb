@@ -35,6 +35,7 @@ import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import java.time.ZoneId
+import com.jscyril.ebb.engine.AppNames
 
 class Repo private constructor(ctx: Context) {
     private val ds = ctx.applicationContext.ds
@@ -70,7 +71,7 @@ class Repo private constructor(ctx: Context) {
     }[Keys.ZONE]!!.let(ZoneId::of).also { zoneCache = it }
 
     // ---- rules
-    val rulesFlow: Flow<Rules> = ds.data.map { it.dec(Keys.RULES, Rules.serializer(), EMPTY_RULES) }
+    val rulesFlow: Flow<Rules> = ds.data.map { it.dec(Keys.RULES, Rules.serializer(), EMPTY_RULES).also { r -> AppNames.remember(r.apps.values) } }
     suspend fun rules() = rulesFlow.first()
     suspend fun saveRules(r: Rules) = put(Keys.RULES, r) { json.encodeToString(Rules.serializer(), it) }
 

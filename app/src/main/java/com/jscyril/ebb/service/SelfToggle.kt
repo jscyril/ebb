@@ -13,6 +13,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import com.jscyril.ebb.data.Repo
 import com.jscyril.ebb.guard.PaymentPause
+import com.jscyril.ebb.widget.PauseWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -54,6 +55,7 @@ object SelfToggle {
         repo.startPause(now, now + PaymentPause.DURATION_MS) // first, so the service going down doesn't heal itself
         schedule(ctx, PaymentPause.DURATION_MS)
         set(ctx, false)
+        PauseWidget.refresh(ctx)
         return Result.PAUSED
     }
 
@@ -61,6 +63,7 @@ object SelfToggle {
     suspend fun resume(ctx: Context) {
         Repo.get(ctx).endPause()
         heal(ctx)
+        PauseWidget.refresh(ctx)
     }
 
     /** Turns the service back on if protection is on and no pause is running; a running pause gets its end re-armed. */
@@ -71,7 +74,7 @@ object SelfToggle {
         val until = repo.pausedUntil()
         val left = (until ?: 0) - TrustedNow.peek(ctx)
         if (left > 0) return schedule(ctx, left)
-        if (until != null) repo.endPause()
+        if (until != null) { repo.endPause(); PauseWidget.refresh(ctx) }
         if (!isOn(ctx)) set(ctx, true)
     }
 

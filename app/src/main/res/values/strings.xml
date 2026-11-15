@@ -254,6 +254,9 @@
     <string name="pay_resume">Turn Ebb back on now</string>
     <string name="pay_tile_hint">Add the Pause Ebb tile to Quick Settings to pause from anywhere.</string>
     <string name="pause_tile">Pause Ebb</string>
+    <string name="pause_widget_name">Pause for payment</string>
+    <string name="pause_widget_desc">Pause Ebb for 5 minutes so payment apps work</string>
+    <string name="pause_widget_paused">Ebb paused</string>
     <string name="pause_tile_setup">Set up in Ebb</string>
     <string name="pause_tile_until">Until %1$s</string>
     <string name="pause_tile_left">%1$d left today</string>

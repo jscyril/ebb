@@ -82,6 +82,12 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/apps_widget_info" />
         </receiver>
+        <receiver android:name=".widget.PauseWidgetReceiver" android:exported="false" android:label="@string/pause_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/pause_widget_info" />
+        </receiver>
         <receiver android:name=".service.SelfToggleReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

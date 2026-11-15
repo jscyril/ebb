@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.graphics.Rect
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -98,6 +99,7 @@ class BlockerService : AccessibilityService() {
     private var launchingUntil = 0L // uptime
     private var widgetsDirty = false // a widget-visible write happened in this serial block
     private var siteScan: Job? = null
+    private var siteBrowser: String? = null // the browser whose page is the gated target, else null (an app is)
     private val lastHost = HashMap<String, String>() // per browser, for when its address bar is hidden (scrolled, fullscreen)
 
     private val receiver = object : BroadcastReceiver() {
@@ -156,7 +158,7 @@ class BlockerService : AccessibilityService() {
             guard(retry = true)
         }
         if (ignored(pkg)) return
-        if (BrowserUrl.isBrowser(pkg)) scheduleSite(0) else serial { onForeground(pkg) }
+        if (BrowserUrl.isBrowser(pkg)) scheduleSite(0) else serial { siteBrowser = null; onForeground(pkg) }
     }
 
     private fun scheduleSite(ms: Long) {
@@ -174,7 +176,11 @@ class BlockerService : AccessibilityService() {
         if (pkg == null || !BrowserUrl.isBrowser(pkg)) return
         if (read != null) lastHost[pkg] = read
         val host = read ?: lastHost[pkg] // bar hidden or being typed in: still where they were
-        serial { onForeground(host?.let { Sites.appFor(it, activeRules(clock.now()).values) } ?: pkg) }
+        serial {
+            val app = host?.let { Sites.appFor(it, activeRules(clock.now()).values) }
+            siteBrowser = if (app != null) pkg else null
+            onForeground(app ?: pkg)
+        }
     }
 
     override fun onInterrupt() {}
@@ -263,7 +269,8 @@ class BlockerService : AccessibilityService() {
         if (raw == packageName && overlay?.isShowing == true) return // our overlay has focus: leave it be (no flip-flop)
         val pkg = raw?.takeUnless(::ignored)
         if (pkg != null && BrowserUrl.isBrowser(pkg)) return siteCheck()
-        serial { onForeground(pkg) } // null pkg still scans the visible windows
+        // Unknown front window (ours, system UI): keep siteBrowser; a real other app clears it.
+        serial { if (pkg != null) siteBrowser = null; onForeground(pkg) } // null pkg still scans the visible windows
     }
 
     /** Runs [block] after all earlier ones; a failure is logged, never crashes the service. */
@@ -284,9 +291,12 @@ class BlockerService : AccessibilityService() {
     }
 
     /** [pkg] changed to the foreground (null = unknown); a watched app still visible in PiP/split screen stays gated. */
-    private suspend fun onForeground(pkg: String?) {
+    private suspend fun onForeground(seen: String?) {
         val now = clock.now()
         val rules = activeRules(now)
+        // Front window unknown (system UI, our overlay) while a gated site's browser is still showing: still that site.
+        val pkg = seen ?: siteBrowser?.takeIf { b -> appWindows().any { it.first == b } }
+            ?.let { b -> lastHost[b]?.let { Sites.appFor(it, rules.values) } }
         val direct = pkg != null && pkg in rules
         val wins = if (direct) emptyList() else appWindows()
         val target = if (direct) pkg else visibleWatched(wins.map { it.first }, rules.keys, tracker.pkg ?: fgPkg)
@@ -330,7 +340,7 @@ class BlockerService : AccessibilityService() {
                 if (isNew && attempts.shouldCount(pkg, now)) {
                     repo.logSession(pkg, now, now, 0, Kind.BLOCKED_ATTEMPT)
                     widgetsDirty = true
-                    performGlobalAction(GLOBAL_ACTION_HOME) // background it so audio/video usually stop
+                    away() // background it so audio/video usually stop
                 }
                 showBlock(pkg, rule, d, now, bounds)
             }
@@ -442,7 +452,7 @@ class BlockerService : AccessibilityService() {
             schedule(rule, pkg, now)
         } else {
             SessionNotifier.cancel(this, pkg)
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            away()
             val name = label(pkg)
             val icon = icon(pkg)
             val next = (d as? Decision.Blocked)?.until ?: now // Prompt: nothing locked, the session just ended
@@ -530,9 +540,19 @@ class BlockerService : AccessibilityService() {
 
     /** Go home button, Back key and TimesUp; re-checks after, so a PiP that survives Home is covered again. */
     private fun goHome() {
-        performGlobalAction(GLOBAL_ACTION_HOME)
+        away()
         dismiss()
         scheduleRecheck(400)
+    }
+
+    /**
+     * Leaves the gated app. For a website, Home would bring the same tab straight back when the browser reopens,
+     * so the browser gets a fresh tab instead and stays usable; the blocked tab just sits in its tab list.
+     */
+    private fun away() {
+        val b = siteBrowser ?: return run { performGlobalAction(GLOBAL_ACTION_HOME) }
+        val tab = Intent(Intent.ACTION_VIEW, Uri.parse(NEUTRAL_URL)).setPackage(b).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { startActivity(tab) }.isFailure) performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
     private fun label(pkg: String): String = runCatching {
@@ -561,6 +581,7 @@ class BlockerService : AccessibilityService() {
             private set
 
         private const val TAG = "EbbBlocker"
+        private const val NEUTRAL_URL = "https://www.google.com/"
         private const val SYSTEM_UI = "com.android.systemui"
         private const val GUARD_NODES = 250
         private const val ICON_PX = 96

@@ -6,6 +6,13 @@ An Android app blocker that is hard to talk yourself out of. Open a blocked app,
 
 **Why:** blockers that you can remove in ten seconds don't help when the urge hits. Ebb puts friction in the way of removing it, not only in the way of the apps.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" width="200" alt="Home: today's usage, opens, time left">
+  <img src="docs/screenshots/prompt.png" width="200" alt="Session prompt over instagram.com in Chrome">
+  <img src="docs/screenshots/block.png" width="200" alt="Block screen with unlock time">
+  <img src="docs/screenshots/insights.png" width="200" alt="Insights: today's ring and streak">
+</p>
+
 ## Features
 
 - **Session prompt.** Opening a watched app asks how long you want. Each length carries a lockout once it ends. Defaults (all editable per app):
@@ -18,10 +25,23 @@ An Android app blocker that is hard to talk yourself out of. Open a blocked app,
   | 60 min | 8 h |
 
 - **Daily cap.** Default 60 min per app. Once reached, the app is locked until local midnight, even if used in short bursts.
+- **Website blocking.** Each app's website shares its session, lockout and cap, so instagram.com in a browser is gated like the Instagram app. Common apps come with their domains already filled in (YouTube, TikTok, Reddit, X, Facebook and more), and you can edit the list per app under Rules > Websites. Works in Chrome, Brave, Edge, Vivaldi, Firefox, Samsung Internet, Opera and DuckDuckGo. Leaving a blocked site opens a fresh tab instead of Home.
+- **Timer chip.** While a session runs, a silent countdown notification shows the time left. On Android 16+ it appears as a chip in the status bar (Live Update).
+
+  <img src="docs/screenshots/chip.png" width="400" alt="Status bar timer chip showing 00:56">
+
 - **Emergency passes.** 2 per calendar month. A 60 s forced wait, then a typed phrase, then 10 minutes in that one app. Each use is logged and resets your streak. No "skip" button exists anywhere.
+- **Rules survive uninstalling.** Uninstalling a watched app keeps its rule (shown as "Not installed"), so reinstalling it doesn't reset your limits.
 - **Insights.** Today's ring, 7-day bars, per-app breakdown, hour-of-day heatmap, opens vs blocked attempts, streak, estimated time saved.
 - **Widgets.** "Today" ring and "Apps" status list (Glance).
 - **Themes.** Accent colours, dynamic colour, light/dark/AMOLED.
+
+<p align="center">
+  <img src="docs/screenshots/rules.png" width="200" alt="Rules: per-app editor with session tiers">
+  <img src="docs/screenshots/rules2.png" width="200" alt="Rules: daily limit and websites">
+  <img src="docs/screenshots/insights2.png" width="200" alt="Insights: week, by app, heatmap">
+  <img src="docs/screenshots/settings.png" width="200" alt="Settings: theme, pledge, protection">
+</p>
 
 ## How hard is it to bypass?
 
@@ -34,7 +54,7 @@ Hard, not impossible.
 - **After a pledge**, turning protection off takes a 48 h wait plus a typed phrase in the 24 h after it; an unused request then expires and must be filed again. (Ending a pledge early with the passcode does not skip this wait.)
 - **Trusted clock.** Time is anchored to elapsed realtime, so changing the system clock never shortens a lockout, cooldown or pledge.
 
-**Known holes:** safe mode, `adb uninstall`, factory reset, and changing the clock while Ebb's service is off, then rebooting (a change made while it runs is undone after a reboot). The Settings guard matches English text (class names and the app name still work in other languages). Device Owner mode (set up via adb on a freshly reset phone) could close most of these and is a possible future hardening.
+**Known holes:** safe mode, `adb uninstall`, factory reset, and changing the clock while Ebb's service is off, then rebooting (a change made while it runs is undone after a reboot). Website blocking only covers the browsers listed above; other browsers and in-app web views are not checked. The Settings guard matches English text (class names and the app name still work in other languages). Device Owner mode (set up via adb on a freshly reset phone) could close most of these and is a possible future hardening.
 
 ## Install
 
@@ -47,7 +67,7 @@ Sideload only; the Accessibility policy makes Play Store distribution unlikely.
 
 ## Permissions
 
-- **Accessibility service:** detects which app is in the foreground (window-state changes only, no polling) and draws the prompt/block screens over it. It does not read what you type or view.
+- **Accessibility service:** detects which app is in the foreground (window events, no polling) and draws the prompt/block screens over it. In supported browsers it reads only the address bar, to match watched websites. It does not read what you type or the pages you view.
 - **Device Admin:** blocks plain uninstall.
 - **Notifications:** a silent countdown while a session runs. On Android 16+ it shows as a timer chip in the status bar (Live Update).
 
@@ -85,6 +105,8 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ./gradlew lint            # fails on errors, not warnings
 ./gradlew assembleRelease
 ```
+
+The debug build installs alongside the release as "Ebb Debug" and has a **Test mode** switch in Settings: rule changes apply instantly, with no 24 h wait and no pledge refusal. It is stripped from release builds.
 
 ## Manual device test checklist
 

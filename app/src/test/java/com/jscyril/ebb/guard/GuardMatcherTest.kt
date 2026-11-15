@@ -17,6 +17,15 @@ class GuardMatcherTest {
 
     @Test fun accessibilityDetailPage() = assertTrue(eject(settings, listOf("Ebb", "Use Ebb")))
 
+    @Test fun accessibilityDetailPageByClass() = assertTrue(
+        eject(settings, listOf("Ebb"), cls = "com.android.settings.Settings\$AccessibilityDetailsSettingsActivity"),
+    )
+
+    @Test fun accessibilityListStaysOpen() = assertFalse(
+        eject(settings, listOf("Accessibility", "Downloaded apps", "Ebb", "On", "TalkBack", "Accessibility shortcuts"),
+            cls = "com.android.settings.Settings\$AccessibilitySettingsActivity"),
+    )
+
     @Test fun deviceAdminPageByClass() =
         assertTrue(eject(settings, listOf("Ebb"), cls = "com.android.settings.applications.specialaccess.deviceadmin.DeviceAdminAdd"))
 

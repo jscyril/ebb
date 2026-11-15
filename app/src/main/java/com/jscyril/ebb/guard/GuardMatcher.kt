@@ -11,13 +11,15 @@ object GuardMatcher {
 
     private val SENSITIVE_TEXT = listOf(
         "uninstall", "force stop", "deactivate", "disable", "clear storage", "clear data", "clear cache",
-        "turn off", "stop", "remove", "permissions", "device admin", "accessibility", "usage access",
+        "turn off", "stop", "remove", "permissions", "device admin", "usage access",
         "battery", "unrestricted", "optimi", "display over other apps", "allow restricted settings",
     )
     private val SENSITIVE_CLS = listOf(
-        "InstalledAppDetails", "AppInfo", "DeviceAdminAdd", "DeviceAdminSettings", "Accessibility", "UsageAccess",
+        "InstalledAppDetails", "AppInfo", "DeviceAdminAdd", "DeviceAdminSettings", "AccessibilityDetails", "UsageAccess",
         "HighPowerApplications", "UninstallerActivity", "UninstallAlertActivity", "ManageApplications",
     )
+    // No plain "accessibility" here: the Accessibility list names Ebb too, and ejecting it locks out TalkBack and the
+    // rest. Ebb's own page is caught by its "Use Ebb" toggle (below) or the AccessibilityDetails class.
     private val PLEDGE_TEXT = listOf(
         "date & time", "date and time", "automatic date", "set time", "time zone", "developer options",
         "usb debugging", "wireless debugging", "factory reset", "erase all data", "reset options",

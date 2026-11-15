@@ -1,5 +1,6 @@
 package com.jscyril.ebb.ui.app
 
+import com.jscyril.ebb.engine.SessionEngine
 import android.app.Application
 import android.content.Intent
 import android.provider.Settings
@@ -147,7 +148,7 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
             )
         }
         item(key = "hero") {
-            val capSec = apps.sumOf { it.dailyCapMin.coerceAtLeast(0) * 60L }
+            val capSec = (rules?.totalCapMin ?: 0) * 60L
             Hero(days.lastOrNull(), days.getOrNull(days.size - 2)?.takeIf { days.size == 2 }, capSec, Modifier.animateItem())
         }
         item(key = "appsTitle") { SectionTitle(stringResource(R.string.home_watched), Modifier.semantics { heading() }) }
@@ -158,8 +159,9 @@ fun Home(onOpenRules: () -> Unit, onOpenSettings: () -> Unit, contentPadding: Pa
             }
         }
         val t = now; val z = zone
+        val effective = if (t != null && z != null) SessionEngine.withSharedCap(rules?.apps.orEmpty(), rules?.sharedCapMin, states, t, z) else emptyMap()
         items(apps, key = { it.pkg }) { rule ->
-            val status = if (t != null && z != null) appStatus(rule, states[rule.pkg] ?: AppState(), t, z) else null
+            val status = if (t != null && z != null) appStatus(effective[rule.pkg] ?: rule, states[rule.pkg] ?: AppState(), t, z) else null
             AppRow(rule.pkg, status, Modifier.animateItem())
         }
     }

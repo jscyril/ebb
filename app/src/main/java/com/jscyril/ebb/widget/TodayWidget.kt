@@ -46,7 +46,7 @@ class TodayWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val repo = Repo.get(context)
         val colors = widgetColors(context, repo.themeFlow.first())
-        val caps = repo.rules().apps.values.sumOf { it.dailyCapMin.coerceAtLeast(0) } * 60L
+        val caps = repo.rules().totalCapMin * 60L
         val today = repo.dailyTotals(1).first().last()
         val top = repo.perApp(today.dayKey).first().filter { it.seconds >= 60 }.take(3).map { Apps.label(context, it.pkg) to it.seconds }
         val data = Data(today.seconds, caps, top)

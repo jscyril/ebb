@@ -156,9 +156,8 @@ fun Dashboard(contentPadding: PaddingValues, vm: InsightsVm = viewModel()) {
             item(key = "empty") { EmptyState(Modifier.animateItem()) }
             return@LazyColumn
         }
-        val caps = r.apps.values.map { it.dailyCapMin.coerceAtLeast(0) }
         item(key = "hero") {
-            val capSec = caps.sum() * 60L
+            val capSec = r.totalCapMin * 60L
             HeroRing(today.seconds, capSec, Modifier.animateItem())
         }
         item(key = "tiles") {
@@ -173,7 +172,7 @@ fun Dashboard(contentPadding: PaddingValues, vm: InsightsVm = viewModel()) {
         }
         item(key = "week") {
             // Same denominator as the hero ring: bars sum all watched apps, so the guide is the summed cap.
-            val guide = (caps.sum() * 60L).takeIf { it > 0 }
+            val guide = (r.totalCapMin * 60L).takeIf { it > 0 }
             WeekCard(week.map { it.dayKey }, week.map { it.seconds }, selectedKey ?: today.dayKey, guide, vm::select, Modifier.animateItem())
         }
         item(key = "apps") {

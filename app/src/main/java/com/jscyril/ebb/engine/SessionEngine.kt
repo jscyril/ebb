@@ -47,5 +47,16 @@ object SessionEngine {
         return minOf(end, now + remainingSec * 1000L, nextMidnight(now, zone))
     }
 
+    /**
+     * A shared daily limit: each app's cap shrinks to what it used today plus what is left of the shared budget, so the
+     * engine needs no other change. shortcut: rounded down to the minute (up to 59 s stricter); keep seconds if that matters.
+     */
+    fun withSharedCap(apps: Map<String, AppRule>, sharedCapMin: Int?, states: Map<String, AppState>, now: Long, zone: ZoneId): Map<String, AppRule> {
+        if (sharedCapMin == null) return apps
+        val used = apps.keys.associateWith { pkg -> states[pkg]?.let { usedToday(it, now, zone) } ?: 0 }
+        val left = sharedCapMin.coerceAtLeast(0) * 60 - used.values.sum()
+        return apps.mapValues { (pkg, r) -> r.copy(dailyCapMin = minOf(r.dailyCapMin, (used.getValue(pkg) + left).coerceAtLeast(0) / 60)) }
+    }
+
     fun startEmergency(s: AppState, now: Long) = s.copy(emergencyUntil = now + EMERGENCY_MIN * MIN)
 }

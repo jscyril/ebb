@@ -1,5 +1,6 @@
 package com.jscyril.ebb.widget
 
+import com.jscyril.ebb.engine.SessionEngine
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -52,7 +53,8 @@ class AppsWidget : GlanceAppWidget() {
         val states = repo.statesFlow.first()
         val now = TrustedNow.peek(context)
         val zone = repo.zone()
-        val rows = repo.rules().apps.map { (pkg, rule) ->
+        val r = repo.rules()
+        val rows = SessionEngine.withSharedCap(r.apps, r.sharedCapMin, states, now, zone).map { (pkg, rule) ->
             WidgetRow(pkg, Apps.label(context, pkg), appStatus(rule, states[pkg] ?: Repo.emptyState(), now, zone))
         }
         val items = sortRows(rows).take(MAX_ROWS).map { Item(it, Apps.icon(context, it.pkg)?.asAndroidBitmap()) }

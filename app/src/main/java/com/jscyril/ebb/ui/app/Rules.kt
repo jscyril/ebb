@@ -1,5 +1,9 @@
 package com.jscyril.ebb.ui.app
 
+import androidx.compose.material3.Switch
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.runtime.mutableIntStateOf
 import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -131,6 +135,9 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
                 }
             }
         }
+        if (current.apps.size > 1) item(key = "shared") {
+            SharedLimitCard(current, pending != null, pledgeUntil != null, { vm.submit(it, onMessage) }, Modifier.animateItem())
+        }
         items(sorted, key = { it.pkg }) { rule ->
             AppRuleCard(
                 rule, expanded == rule.pkg, { expanded = if (expanded == rule.pkg) null else rule.pkg },
@@ -161,6 +168,38 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
                     },
                     Modifier.fillMaxWidth().padding(vertical = 12.dp), enabled = picked.isNotEmpty(),
                 )
+            }
+        }
+    }
+}
+
+/** One daily budget for all watched apps. Turning it on or lowering it is tightening; off or higher waits 24 h. */
+@Composable
+private fun SharedLimitCard(current: Rules, hasPending: Boolean, pledge: Boolean, onSubmit: (Rules) -> Unit, modifier: Modifier = Modifier) {
+    val on = current.sharedCapMin != null
+    var draft by rememberSaveable(current.sharedCapMin) { mutableIntStateOf(current.sharedCapMin ?: minOf(current.totalCapMin, 60)) }
+    Surface(modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.large) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .toggleable(on, enabled = !hasPending && !(on && pledge), role = Role.Switch) { onSubmit(current.copy(sharedCapMin = if (it) draft else null)) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.shared_title), style = MaterialTheme.typography.titleMedium)
+                    Body(stringResource(R.string.shared_body))
+                }
+                Switch(on, null, enabled = !hasPending && !(on && pledge))
+            }
+            if (on) {
+                Stepper(stringResource(R.string.shared_label), draft, { draft = it }, 1, 24 * 60, 1, { minutesText(it) }, steps = listOf(5, 15, 30, 60),
+                    enabled = !hasPending, upEnabled = !pledge || draft < current.sharedCapMin!!)
+                if (draft != current.sharedCapMin) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    val looser = draft > current.sharedCapMin!!
+                    TextButton({ onSubmit(current.copy(sharedCapMin = draft)) }, Modifier.heightIn(min = 48.dp)) {
+                        Text(stringResource(if (looser) R.string.rules_save_wait else R.string.rules_save))
+                    }
+                }
             }
         }
     }
@@ -239,6 +278,7 @@ private fun pendingSummary(cur: Rules, new: Rules): String {
         if (removed.isNotEmpty()) add(stringResource(R.string.pending_removes, removed.joinToString()))
         if (changed.isNotEmpty()) add(stringResource(R.string.pending_changes, changed.joinToString()))
         if (new.passesPerMonth != cur.passesPerMonth) add(stringResource(R.string.pending_passes, new.passesPerMonth))
+        if (new.sharedCapMin != cur.sharedCapMin) add(new.sharedCapMin?.let { stringResource(R.string.pending_shared, minutesText(it)) } ?: stringResource(R.string.pending_shared_off))
     }
     return parts.joinToString(" · ")
 }

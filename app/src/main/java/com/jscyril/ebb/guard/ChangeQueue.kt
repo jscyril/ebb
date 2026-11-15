@@ -9,7 +9,12 @@ import kotlinx.serialization.Serializable
 data class Rules(
     val apps: Map<String, AppRule> = emptyMap(),
     val passesPerMonth: Int = Defaults.PASSES_PER_MONTH,
-)
+    /** One daily budget shared by all watched apps, on top of each app's own limit; null = off. */
+    val sharedCapMin: Int? = null,
+) {
+    /** The day's total limit: the summed app limits, or the shared limit when lower. */
+    val totalCapMin: Int get() = apps.values.sumOf { it.dailyCapMin.coerceAtLeast(0) }.let { s -> sharedCapMin?.let { minOf(s, it) } ?: s }
+}
 @Serializable
 data class Pending(val newRules: Rules = Rules(), val effectiveAt: Long = Long.MAX_VALUE)
 
@@ -26,6 +31,7 @@ object ChangeQueue {
 
     private fun isLooser(cur: Rules, new: Rules): Boolean =
         new.passesPerMonth > cur.passesPerMonth ||
+            (cur.sharedCapMin != null && (new.sharedCapMin == null || new.sharedCapMin > cur.sharedCapMin)) ||
             cur.apps.any { (pkg, old) -> new.apps[pkg]?.let { appLooser(old, it) } ?: true }
 
     private fun appLooser(old: AppRule, new: AppRule): Boolean {

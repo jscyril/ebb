@@ -181,6 +181,11 @@
     <string name="pending_removes">Stops watching %1$s</string>
     <string name="pending_changes">Changes %1$s</string>
     <string name="pending_passes">Emergency passes: %1$d a month</string>
+    <string name="pending_shared">Shared limit: %1$s a day</string>
+    <string name="pending_shared_off">Shared limit off</string>
+    <string name="shared_title">Share one daily limit</string>
+    <string name="shared_body">All watched apps draw from one daily budget, so time doesn\'t just move to the next app. Each app\'s own limit still applies.</string>
+    <string name="shared_label">Shared limit</string>
 
     <!-- Rules -->
     <string name="rules_intro">Stricter changes apply now. Looser ones wait 24 hours, so a weak moment can\'t undo them.</string>

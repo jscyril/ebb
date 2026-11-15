@@ -36,10 +36,11 @@ class NotificationSilencer : NotificationListenerService() {
     private suspend fun silence(list: List<StatusBarNotification>) {
         val repo = Repo.get(this)
         if (!repo.protectionEnabledFlow.first()) return
-        val rules = repo.rules().apps
-        if (list.none { it.packageName in rules }) return
+        val all = repo.rules()
+        if (list.none { it.packageName in all.apps }) return
         val now = TrustedNow.peek(this)
         val zone = repo.zone()
+        val rules = SessionEngine.withSharedCap(all.apps, all.sharedCapMin, repo.statesFlow.first(), now, zone)
         for (sbn in list) {
             if (sbn.isOngoing) continue
             val rule = rules[sbn.packageName] ?: continue

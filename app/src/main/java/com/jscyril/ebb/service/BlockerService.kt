@@ -477,7 +477,7 @@ class BlockerService : AccessibilityService() {
         // A pledge drops the pending change: no loosening lands during one. Test mode (debug only) lands it now.
         val (active, action) = repo.maturePending(if (repo.testModeFlow.first()) Long.MAX_VALUE else now)
         if (action != MatureAction.Keep) widgetsDirty = true
-        return if (guarding()) active.apps else emptyMap()
+        return if (guarding()) SessionEngine.withSharedCap(active.apps, active.sharedCapMin, repo.statesFlow.first(), now, zone) else emptyMap()
     }
 
     /** Package and screen bounds of each visible application window. */

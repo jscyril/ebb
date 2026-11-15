@@ -27,6 +27,7 @@ An Android app blocker that is hard to talk yourself out of. Open a blocked app,
 - **Daily cap.** Default 60 min per app. Once reached, the app is locked until local midnight, even if used in short bursts.
 - **Shared daily limit** (optional, Rules tab). One budget for all watched apps together, on top of each app's own limit, so time doesn't just move to the next app.
 - **Notifications snoozed while locked.** A locked app's notifications are snoozed until it unlocks, so they can't pull you back in; nothing is lost. Needs notification access (Settings > Notifications).
+- **Tapering** (optional, per app). The daily limit drops by a step you choose every Monday until it reaches your target, so you cut down gradually. Stopping or easing a taper waits 24 h like any loosening.
 - **Grayscale** (optional, per app). The screen turns grey for the last 30 seconds of a session as a cue to wrap up.
 - **Website blocking.** Each app's website shares its session, lockout and cap, so instagram.com in a browser is gated like the Instagram app. Common apps come with their domains already filled in (YouTube, TikTok, Reddit, X, Facebook and more), and you can edit the list per app under Rules > Websites. Works in Chrome, Brave, Edge, Vivaldi, Firefox, Samsung Internet, Opera and DuckDuckGo. Leaving a blocked site opens a fresh tab instead of Home.
 - **Timer chip.** While a session runs, a silent countdown notification shows the time left. On Android 16+ it appears as a chip in the status bar (Live Update).

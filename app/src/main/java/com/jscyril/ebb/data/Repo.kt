@@ -1,5 +1,6 @@
 package com.jscyril.ebb.data
 
+import com.jscyril.ebb.engine.Tapering
 import com.jscyril.ebb.BuildConfig
 
 import android.content.Context
@@ -110,17 +111,23 @@ class Repo private constructor(ctx: Context) {
      * Applies or drops a due pending change ([matureAction]) in one atomic edit, so it can't overwrite a rules write
      * made in between. Returns the rules afterwards and what was done.
      */
+    /** Also applies any weekly taper drop that is due (reported as Apply, so callers redraw). */
     suspend fun maturePending(now: Long): Pair<Rules, MatureAction> {
-        if (pending() == null) return rules() to MatureAction.Keep // fast path: the service calls this on every event
+        val z = zone()
+        // fast path: the service calls this on every event
+        rules().let { r -> if (pending() == null && Tapering.step(r.apps, now, z) == null) return r to MatureAction.Keep }
         var out = EMPTY_RULES
         var action = MatureAction.Keep
         ds.edit { p ->
             out = p.dec(Keys.RULES, Rules.serializer(), EMPTY_RULES)
-            val pend = p[Keys.PENDING]?.let { p.dec(Keys.PENDING, Pending.serializer().nullable, null) } ?: return@edit
-            val pledge = p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) }?.record
-            action = matureAction(Pledge.isActive(pledge, now), now >= pend.effectiveAt)
-            if (action == MatureAction.Apply) { out = pend.newRules; p[Keys.RULES] = json.encodeToString(Rules.serializer(), out) }
-            if (action != MatureAction.Keep) p.remove(Keys.PENDING)
+            p[Keys.PENDING]?.let { p.dec(Keys.PENDING, Pending.serializer().nullable, null) }?.let { pend ->
+                val pledge = p[Keys.PLEDGE]?.let { p.dec(Keys.PLEDGE, PledgeDto.serializer().nullable, null) }?.record
+                action = matureAction(Pledge.isActive(pledge, now), now >= pend.effectiveAt)
+                if (action == MatureAction.Apply) out = pend.newRules
+                if (action != MatureAction.Keep) p.remove(Keys.PENDING)
+            }
+            Tapering.step(out.apps, now, z)?.let { out = out.copy(apps = it); action = MatureAction.Apply }
+            if (action == MatureAction.Apply) p[Keys.RULES] = json.encodeToString(Rules.serializer(), out)
         }
         return out to action
     }

@@ -1,5 +1,8 @@
 package com.jscyril.ebb.ui.app
 
+import java.time.ZoneId
+import com.jscyril.ebb.engine.Tapering
+import com.jscyril.ebb.engine.Taper
 import com.jscyril.ebb.service.SelfToggle
 import androidx.compose.material3.Switch
 import androidx.compose.ui.semantics.Role
@@ -191,6 +194,33 @@ private fun GrayscaleRow(on: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
+/** Weekly step-down of the daily limit. A new taper starts counting from this week's Monday, so the first drop is next Monday. */
+@Composable
+private fun TaperRow(taper: Taper?, capMin: Int, onChange: (Taper?) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(taper != null, role = Role.Switch) { on ->
+                onChange(if (on) Taper(targetMin = (capMin / 2 / 5 * 5).coerceAtLeast(5), stepMin = 5, lastMonday = Tapering.monday(System.currentTimeMillis(), ZoneId.systemDefault())) else null)
+            },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.taper_title), style = MaterialTheme.typography.bodyLarge)
+                Body(
+                    if (taper == null) stringResource(R.string.taper_off_body)
+                    else if (capMin <= taper.targetMin) stringResource(R.string.taper_done, minutesText(taper.targetMin))
+                    else stringResource(R.string.taper_on_body, minutesText(taper.stepMin), minutesText(taper.targetMin)),
+                )
+            }
+            Switch(taper != null, null)
+        }
+        if (taper != null) {
+            Stepper(stringResource(R.string.taper_target), taper.targetMin, { onChange(taper.copy(targetMin = it)) }, 0, LOCK_MAX, 1, { minutesText(it) }, steps = listOf(5, 15, 30))
+            Stepper(stringResource(R.string.taper_step), taper.stepMin, { onChange(taper.copy(stepMin = it)) }, 1, 120, 1, { minutesText(it) }, steps = listOf(1, 5, 15))
+        }
+    }
+}
+
 /** One daily budget for all watched apps. Turning it on or lowering it is tightening; off or higher waits 24 h. */
 @Composable
 private fun SharedLimitCard(current: Rules, hasPending: Boolean, pledge: Boolean, onSubmit: (Rules) -> Unit, modifier: Modifier = Modifier) {
@@ -248,6 +278,7 @@ private fun AppRuleCard(
                     RuleEditor(draft.tiers, draft.dailyCapMin, { t, c -> draft = draft.copy(tiers = t, dailyCapMin = c) })
                     SitesEditor(Sites.of(draft), name) { draft = draft.copy(domains = it) }
                     GrayscaleRow(draft.grayscale) { draft = draft.copy(grayscale = it) }
+                    TaperRow(draft.taper, draft.dailyCapMin) { draft = draft.copy(taper = it) }
                     val proposed = current.copy(apps = current.apps + (rule.pkg to draft.copy(tiers = draft.tiers.sortedBy { it.sessionMin })))
                     val changed = draft != rule
                     val looser = changed && isLooser(current, proposed)

@@ -37,6 +37,10 @@ object ChangeQueue {
     private fun appLooser(old: AppRule, new: AppRule): Boolean {
         if (new.pkg != old.pkg || new.dailyCapMin > old.dailyCapMin) return true
         if (old.grayscale && !new.grayscale) return true
+        old.taper?.let { ot ->
+            val nt = new.taper ?: return true
+            if (nt.targetMin > ot.targetMin || nt.stepMin < ot.stepMin || nt.lastMonday > ot.lastMonday) return true
+        }
         if (!Sites.of(new).containsAll(Sites.of(old))) return true // a site stops being covered
         if (new.tiers.any { !it.isValid }) return true
         val oldTiers = old.tiers.filter { it.isValid }

@@ -1,5 +1,6 @@
 package com.jscyril.ebb.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,11 +15,14 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +48,13 @@ fun EbbTheme(prefs: ThemePrefs, content: @Composable () -> Unit) {
             val d = if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
             if (amoled) d.amoled() else d
         } else Palette.scheme(prefs.accent, dark, amoled).toColorScheme(dark)
+    }
+    // enableEdgeToEdge picks bar icon colours from the system mode; follow the app's mode instead. Overlays have no Activity.
+    val view = LocalView.current
+    SideEffect {
+        (view.context as? Activity)?.window?.let { w ->
+            WindowCompat.getInsetsController(w, view).apply { isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark }
+        }
     }
     MaterialExpressiveTheme(
         colorScheme = scheme,

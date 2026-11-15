@@ -100,6 +100,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -149,7 +150,9 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
 
     fun requestDisable() = viewModelScope.launch {
         val now = TrustedNow.peek(app)
-        if (!Pledge.isActive(repo.pledge(), now)) repo.saveDisableRequestedAt(now)
+        // Test mode (debug only): back-date the request so the 48 h wait is already over.
+        val at = if (repo.testModeFlow.first()) now - DisableRequest.WAIT_MS else now
+        if (!Pledge.isActive(repo.pledge(), now)) repo.saveDisableRequestedAt(at)
     }
 
     fun cancelDisable() = viewModelScope.launch { repo.saveDisableRequestedAt(null) }

@@ -7,6 +7,10 @@ import android.text.format.DateUtils
 import android.util.LruCache
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -191,9 +195,11 @@ fun usageText(seconds: Long): String {
 fun Stepper(
     label: String, value: Int, onChange: (Int) -> Unit, min: Int, max: Int, step: Int,
     format: @Composable (Int) -> String, modifier: Modifier = Modifier, enabled: Boolean = true, upEnabled: Boolean = true,
+    quick: List<Int> = emptyList(),
 ) {
     val shown = format(value)
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         FilledTonalIconButton({ onChange(stepDown(value, step, min)) }, Modifier.size(48.dp), enabled = enabled && value > min) {
             Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.cd_decrease, label))
@@ -205,6 +211,18 @@ fun Stepper(
         FilledTonalIconButton({ onChange(stepUp(value, step, max)) }, Modifier.size(48.dp), enabled = enabled && upEnabled && value < max) {
             Icon(painterResource(R.drawable.ic_add), stringResource(R.string.cd_increase, label))
         }
+    }
+    // Quick-add bubbles for bigger jumps; the ± buttons above move by [step].
+    if (quick.isNotEmpty()) Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (q in quick) {
+            val cd = stringResource(R.string.cd_add_minutes, q, label)
+            SuggestionChip(
+                { onChange(minOf(max, value + q)) }, { Text(stringResource(R.string.quick_add, q)) },
+                Modifier.semantics { contentDescription = cd }, enabled = enabled && upEnabled && value < max,
+                shape = CircleShape,
+            )
+        }
+    }
     }
 }
 

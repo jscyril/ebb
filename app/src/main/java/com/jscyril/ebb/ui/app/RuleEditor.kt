@@ -72,12 +72,12 @@ fun RuleEditor(tiers: List<Tier>, capMin: Int, onChange: (List<Tier>, Int) -> Un
                     Stepper(
                         stringResource(R.string.tier_session), t.sessionMin,
                         { v -> onChange(tiers.mapIndexed { j, x -> if (j == i) x.copy(sessionMin = v) else x }, capMin) },
-                        1, SESSION_MAX, 5, { minutesText(it) },
+                        1, SESSION_MAX, 1, { minutesText(it) }, quick = QUICK,
                     )
                     Stepper(
                         stringResource(R.string.tier_lock), t.lockMin,
                         { v -> onChange(tiers.mapIndexed { j, x -> if (j == i) x.copy(lockMin = v) else x }, capMin) },
-                        0, LOCK_MAX, 15, { minutesText(it) },
+                        0, LOCK_MAX, 1, { minutesText(it) }, quick = QUICK,
                     )
                 }
             }
@@ -108,7 +108,7 @@ fun RuleEditor(tiers: List<Tier>, capMin: Int, onChange: (List<Tier>, Int) -> Un
             )
         }
         HorizontalDivider(Modifier.padding(vertical = 4.dp))
-        Stepper(stringResource(R.string.rule_cap), capMin, { onChange(tiers, it) }, 0, LOCK_MAX, 5, { minutesText(it) })
+        Stepper(stringResource(R.string.rule_cap), capMin, { onChange(tiers, it) }, 0, LOCK_MAX, 1, { minutesText(it) }, quick = QUICK)
     }
 }
 
@@ -154,3 +154,5 @@ fun AppPicker(selected: Set<String>, onToggle: (String) -> Unit, modifier: Modif
         }
     }
 }
+
+private val QUICK = listOf(5, 10, 15)

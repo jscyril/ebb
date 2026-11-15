@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ebb</string>
+    <string name="brand_name" translatable="false">Ebb</string>
     <string name="set_test">Testing (debug build only)</string>
     <string name="test_mode">Test mode</string>
     <string name="test_mode_body">Rule changes apply right away: no 24 hour wait, even during a pledge.</string>

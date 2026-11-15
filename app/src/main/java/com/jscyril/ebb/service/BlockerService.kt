@@ -567,6 +567,8 @@ class BlockerService : AccessibilityService() {
     private fun teardown() {
         if (torn) return
         torn = true
+        // Off while protection is on and no pause runs (switched off, or an update): SelfToggle turns it back on.
+        if (SelfToggle.canWrite(this)) SelfToggle.schedule(this, 3_000)
         if (instance === this) instance = null
         runCatching { unregisterReceiver(receiver) }
         dismiss(); overlay = null

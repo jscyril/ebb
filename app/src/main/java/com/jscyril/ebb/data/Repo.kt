@@ -151,6 +151,20 @@ class Repo private constructor(ctx: Context) {
         }
     }
 
+    // ---- payment pauses
+    val pausedUntilFlow: Flow<Long?> = ds.data.map { it[Keys.PAUSED_UNTIL]?.toLongOrNull() }
+    suspend fun pausedUntil(): Long? = pausedUntilFlow.first()
+    val pauseUsesFlow: Flow<List<Long>> = ds.data.map { it.dec(Keys.PAUSES, LONGS_SER, emptyList()) }
+    suspend fun pauseUses(): List<Long> = pauseUsesFlow.first()
+    suspend fun startPause(at: Long, until: Long) {
+        ds.edit { p ->
+            val l = p.dec(Keys.PAUSES, LONGS_SER, emptyList())
+            p[Keys.PAUSES] = json.encodeToString(LONGS_SER, (l + at).filter { it >= at - 2 * DAY_MS })
+            p[Keys.PAUSED_UNTIL] = until.toString()
+        }
+    }
+    suspend fun endPause() = put<Long>(Keys.PAUSED_UNTIL, null) { it.toString() }
+
     // ---- trusted clock anchor
     suspend fun clockAnchor(): ClockAnchor? = ds.data.first().let { p -> p[Keys.CLOCK]?.let { p.dec(Keys.CLOCK, ClockAnchor.serializer().nullable, null) } }
     suspend fun saveClockAnchor(a: ClockAnchor) = put(Keys.CLOCK, a) { json.encodeToString(ClockAnchor.serializer(), it) }

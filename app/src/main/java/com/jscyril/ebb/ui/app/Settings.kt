@@ -103,6 +103,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.selection.SelectionContainer
+import kotlinx.coroutines.flow.combine
+import com.jscyril.ebb.service.SelfToggle
+import com.jscyril.ebb.guard.PaymentPause
 import kotlinx.coroutines.withContext
 import com.jscyril.ebb.BuildConfig
 import androidx.compose.material3.Switch
@@ -123,6 +127,11 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
     val disableReq = repo.disableRequestedAtFlow.stateIn(viewModelScope, sub, null)
     val protectionOn = repo.protectionEnabledFlow.stateIn(viewModelScope, sub, true)
     val now = trustedTicker(app, 15_000).stateIn(viewModelScope, sub, null)
+    val pausedUntil = repo.pausedUntilFlow.stateIn(viewModelScope, sub, null)
+    val pausesLeft = combine(repo.pauseUsesFlow, trustedTicker(app, 15_000)) { uses, t -> PaymentPause.remaining(uses, t, repo.zone()) }
+        .stateIn(viewModelScope, sub, PaymentPause.PER_DAY)
+    fun pause() = viewModelScope.launch { SelfToggle.pause(app) }
+    fun resume() = viewModelScope.launch { SelfToggle.resume(app) }
 
     /** Last failed passcode try, elapsed realtime; memory only (ruling), enough to slow guessing by hand. */
     private val _lastFail = MutableStateFlow<Long?>(null)
@@ -188,6 +197,7 @@ fun SettingsTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: 
         rules?.let { r -> Card { PassesSection(r.passesPerMonth, pledgeActive, vm, onMessage) } }
         Card { PledgeSection(vm, pledgeActive) }
         Card { ProtectionSection(vm, pledgeActive) }
+        Card { PaymentsSection(vm) }
         if (BuildConfig.DEBUG) Card { TestModeSection(vm) }
         Card { AboutSection() }
     }
@@ -421,6 +431,33 @@ private fun ProtectionSection(vm: SettingsVm, pledgeActive: Boolean) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** Pause for payment apps that refuse to run beside an accessibility service; see [PaymentPause]. */
+@Composable
+private fun PaymentsSection(vm: SettingsVm) {
+    val ctx = LocalContext.current
+    val now by vm.now.collectAsStateWithLifecycle()
+    val until by vm.pausedUntil.collectAsStateWithLifecycle()
+    val left by vm.pausesLeft.collectAsStateWithLifecycle()
+    val canWrite = remember(now) { SelfToggle.canWrite(ctx) } // re-checked on each tick, so an adb grant shows up
+    val paused = now?.let { PaymentPause.isPaused(until, it) } ?: false
+    SectionTitle(stringResource(R.string.set_payments), Modifier.semantics { heading() })
+    Body(stringResource(R.string.pay_explain, PaymentPause.PER_DAY))
+    when {
+        !canWrite -> {
+            Body(stringResource(R.string.pay_setup))
+            SelectionContainer { Text(SelfToggle.grantCommand(ctx), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)) }
+        }
+        paused -> {
+            Text(stringResource(R.string.pay_paused_until, timeOfDay(until!!)), style = MaterialTheme.typography.bodyLarge)
+            TextButton(vm::resume, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.pay_resume)) }
+        }
+        else -> {
+            OutlinedButton(vm::pause, Modifier.heightIn(min = 48.dp), enabled = left > 0) { Text(stringResource(R.string.pay_pause, left)) }
+            Body(stringResource(R.string.pay_tile_hint))
         }
     }
 }

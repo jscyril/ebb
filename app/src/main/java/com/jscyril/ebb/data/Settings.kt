@@ -30,6 +30,8 @@ internal object Keys {
     val PROTECTION = stringPreferencesKey("protection_enabled")
     val ZONE = stringPreferencesKey("zone_id")
     val TEST_MODE = stringPreferencesKey("debug_test_mode")
+    val PAUSED_UNTIL = stringPreferencesKey("paused_until")
+    val PAUSES = stringPreferencesKey("pause_uses")
 }
 
 /** [skew] is wall clock minus trusted time when saved; after a reboot it undoes a clock change made before it. */

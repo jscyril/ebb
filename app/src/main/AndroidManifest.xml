@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Android 11+ package visibility: resolve labels/icons of launchable apps. -->
     <queries>
         <intent>
@@ -11,6 +12,12 @@
     <!-- Session countdown notification; on Android 16+ it can show as a status bar timer chip. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <!-- Payment pause and self-heal: Ebb switches its own accessibility service off and on. Granted once over adb. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <!-- The pause must end on time. Sideloaded, so the Play policy on exact alarms doesn't apply. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".EbbApp"
@@ -75,6 +82,22 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/apps_widget_info" />
         </receiver>
+        <receiver android:name=".service.SelfToggleReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <service
+            android:name=".service.PauseTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_schedule"
+            android:label="@string/pause_tile"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <!-- Widget refresh alarm; clock/zone changes move it. Boot is covered by the service connecting. -->
         <receiver android:name=".widget.WidgetRefreshReceiver" android:exported="false">
             <intent-filter>

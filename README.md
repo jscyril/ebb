@@ -31,6 +31,7 @@ An Android app blocker that is hard to talk yourself out of. Open a blocked app,
   <img src="docs/screenshots/chip.png" width="400" alt="Status bar timer chip showing 00:56">
 
 - **Emergency passes.** 2 per calendar month. A 60 s forced wait, then a typed phrase, then 10 minutes in that one app. Each use is logged and resets your streak. No "skip" button exists anywhere.
+- **Payment pause.** Google Pay (and some other payment apps) refuse to pay while a sideloaded app's accessibility service is on. Pause Ebb for 5 minutes from Settings > Payments or the "Pause Ebb" Quick Settings tile, 3 times a day; it turns itself back on when the pause ends. Needs a one-time `adb shell pm grant com.jscyril.ebb android.permission.WRITE_SECURE_SETTINGS`.
 - **Rules survive uninstalling.** Uninstalling a watched app keeps its rule (shown as "Not installed"), so reinstalling it doesn't reset your limits.
 - **Insights.** Today's ring, 7-day bars, per-app breakdown, hour-of-day heatmap, opens vs blocked attempts, streak, estimated time saved.
 - **Widgets.** "Today" ring and "Apps" status list (Glance).
@@ -52,6 +53,7 @@ Hard, not impossible.
 - **24 h wait on loosening.** Tightening a rule is instant. Longer sessions, shorter lockouts, a higher cap or removing an app wait 24 h, and can be cancelled while pending.
 - **Pledge.** Choose 7, 30 or 90 days at setup. A 24-character passcode is shown once (give it to someone else) and only a salted PBKDF2 hash is stored. During a pledge limits can only get stricter, protection can't be disabled, and the passcode is the only way out early. There is no recovery path.
 - **After a pledge**, turning protection off takes a 48 h wait plus a typed phrase in the 24 h after it; an unused request then expires and must be filed again. (Ending a pledge early with the passcode does not skip this wait.)
+- **Self-heal.** With the optional secure-settings grant, Ebb turns its accessibility service straight back on if it is switched off while protection is on.
 - **Trusted clock.** Time is anchored to elapsed realtime, so changing the system clock never shortens a lockout, cooldown or pledge.
 
 **Known holes:** safe mode, `adb uninstall`, factory reset, and changing the clock while Ebb's service is off, then rebooting (a change made while it runs is undone after a reboot). Website blocking only covers the browsers listed above; other browsers and in-app web views are not checked. The Settings guard matches English text (class names and the app name still work in other languages). Device Owner mode (set up via adb on a freshly reset phone) could close most of these and is a possible future hardening.
@@ -69,6 +71,7 @@ Sideload only; the Accessibility policy makes Play Store distribution unlikely.
 
 - **Accessibility service:** detects which app is in the foreground (window events, no polling) and draws the prompt/block screens over it. In supported browsers it reads only the address bar, to match watched websites. It does not read what you type or the pages you view.
 - **Device Admin:** blocks plain uninstall.
+- **Write secure settings** (optional, granted over adb): lets Ebb switch its own accessibility service off for a payment pause and back on afterwards. It also turns the service back on if it goes off while protection is on (switched off, or after an update or reboot).
 - **Notifications:** a silent countdown while a session runs. On Android 16+ it shows as a timer chip in the status bar (Live Update).
 
 Ebb makes no network requests and declares no `INTERNET` permission (checked in the merged release manifest). Nothing leaves your device.

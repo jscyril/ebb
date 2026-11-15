@@ -246,6 +246,19 @@
     </plurals>
     <string name="pledge_none_active">No pledge is running. A pledge makes Ebb impossible to turn off for a while.</string>
     <string name="pledge_start">Start a pledge</string>
+    <string name="set_payments">Payments</string>
+    <string name="pay_explain">Google Pay and some other payment apps refuse to pay while Ebb\'s accessibility service is on. Pause Ebb for 5 minutes before you open them; it turns itself back on. %1$d pauses a day.</string>
+    <string name="pay_setup">One-time setup: connect your phone to a computer with adb and run this. It also lets Ebb turn itself back on if it gets switched off.</string>
+    <string name="pay_pause">Pause for 5 minutes · %1$d left today</string>
+    <string name="pay_paused_until">Paused until %1$s</string>
+    <string name="pay_resume">Turn Ebb back on now</string>
+    <string name="pay_tile_hint">Add the Pause Ebb tile to Quick Settings to pause from anywhere.</string>
+    <string name="pause_tile">Pause Ebb</string>
+    <string name="pause_tile_setup">Set up in Ebb</string>
+    <string name="pause_tile_until">Until %1$s</string>
+    <string name="pause_tile_left">%1$d left today</string>
+    <string name="pause_not_set_up">Pausing needs a one-time setup: see Ebb > Settings > Payments.</string>
+    <string name="pause_none_left">No pauses left today.</string>
     <string name="set_protection">Protection</string>
     <string name="prot_off">Protection is off</string>
     <string name="prot_off_service_still_on">To finish, switch off Ebb in Accessibility settings. Ebb won\'t stop you now.</string>

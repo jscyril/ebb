@@ -258,6 +258,13 @@
     <string name="silence_explain">While an app is locked, Ebb snoozes its notifications until it unlocks, so they can\'t pull you back in. Nothing is lost: they come back when the lock ends.</string>
     <string name="silence_on">On: locked apps\' notifications are snoozed</string>
     <string name="silence_turn_on">Turn on</string>
+    <string name="set_backup">Backup</string>
+    <string name="backup_body">Save your apps and limits to a file, or load them back (for example on a new phone). Loading a backup that loosens anything waits 24 hours, like any other change.</string>
+    <string name="backup_export">Export rules</string>
+    <string name="backup_import">Import rules</string>
+    <string name="backup_exported">Rules exported</string>
+    <string name="backup_write_failed">Couldn\'t save the file</string>
+    <string name="backup_invalid">That file isn\'t an Ebb backup</string>
     <string name="set_payments">Payments</string>
     <string name="pay_explain">Google Pay and some other payment apps refuse to pay while Ebb\'s accessibility service is on. Pause Ebb for 5 minutes before you open them; it turns itself back on. %1$d pauses a day.</string>
     <string name="pay_setup">One-time setup: connect your phone to a computer with adb and run this. It also lets Ebb turn itself back on if it gets switched off.</string>

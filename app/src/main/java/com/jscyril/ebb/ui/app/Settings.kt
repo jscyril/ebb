@@ -1,5 +1,7 @@
 package com.jscyril.ebb.ui.app
 
+import com.jscyril.ebb.data.decodeRulesBackup
+import com.jscyril.ebb.data.encodeRulesBackup
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
@@ -132,6 +134,22 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
     val pausesLeft = combine(repo.pauseUsesFlow, trustedTicker(app, 15_000)) { uses, t -> PaymentPause.remaining(uses, t, repo.zone()) }
         .stateIn(viewModelScope, sub, PaymentPause.PER_DAY)
     fun pause() = viewModelScope.launch { SelfToggle.pause(app) }
+
+    fun exportRules(uri: Uri, onMessage: (String) -> Unit) = viewModelScope.launch {
+        val ok = withContext(Dispatchers.IO) {
+            runCatching { app.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(encodeRulesBackup(repo.rules()).toByteArray()) } }.isSuccess
+        }
+        onMessage(app.getString(if (ok) R.string.backup_exported else R.string.backup_write_failed))
+    }
+
+    /** The file is untrusted: size-capped, parsed and clamped, then sent through the 24 h cooldown like any edit. */
+    fun importRules(uri: Uri, onMessage: (String) -> Unit) = viewModelScope.launch {
+        val text = withContext(Dispatchers.IO) {
+            runCatching { app.contentResolver.openInputStream(uri)!!.use { String(it.readNBytes(1 shl 20)) } }.getOrNull()
+        }
+        val r = text?.let { decodeRulesBackup(it) } ?: return@launch onMessage(app.getString(R.string.backup_invalid))
+        onMessage(submitMessage(app, submitRules(app, r)))
+    }
     fun resume() = viewModelScope.launch { SelfToggle.resume(app) }
 
     /** Last failed passcode try, elapsed realtime; memory only (ruling), enough to slow guessing by hand. */
@@ -201,6 +219,7 @@ fun SettingsTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: 
         Card { SilenceSection() }
         Card { PaymentsSection(vm) }
         if (BuildConfig.DEBUG) Card { TestModeSection(vm) }
+        Card { BackupSection(vm, onMessage) }
         Card { AboutSection() }
     }
 }
@@ -490,6 +509,18 @@ private fun TestModeSection(vm: SettingsVm) {
             Body(stringResource(R.string.test_mode_body))
         }
         Switch(on, null)
+    }
+}
+
+@Composable
+private fun BackupSection(vm: SettingsVm, onMessage: (String) -> Unit) {
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { u -> vm.exportRules(u, onMessage) } }
+    val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { u -> vm.importRules(u, onMessage) } }
+    SectionTitle(stringResource(R.string.set_backup), Modifier.semantics { heading() })
+    Body(stringResource(R.string.backup_body))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton({ export.launch("ebb-rules.json") }, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.backup_export)) }
+        OutlinedButton({ import.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }, Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.backup_import)) }
     }
 }
 

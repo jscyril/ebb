@@ -245,3 +245,19 @@ class Repo private constructor(ctx: Context) {
 
     suspend fun pruneOldEvents(now: Long) = dao.deleteEventsBefore(now - 90 * DAY_MS)
 }
+
+// ---- rules backup: a file the user keeps; imports go through submitRules like any edit.
+private val backupJson = kotlinx.serialization.json.Json { prettyPrint = true; encodeDefaults = true }
+
+fun encodeRulesBackup(r: Rules): String = backupJson.encodeToString(Rules.serializer(), r)
+
+/** Parses a backup from an untrusted file: null unless it holds at least one app; values clamped to sane ranges. */
+fun decodeRulesBackup(text: String): Rules? = runCatching { json.decodeFromString(Rules.serializer(), text) }.getOrNull()
+    ?.let { r ->
+        r.copy(
+            apps = r.apps.values.filter { it.pkg.isNotBlank() }.associateBy { it.pkg }
+                .mapValues { (_, a) -> a.copy(dailyCapMin = a.dailyCapMin.coerceIn(0, 24 * 60)) },
+            passesPerMonth = r.passesPerMonth.coerceIn(0, 4),
+            sharedCapMin = r.sharedCapMin?.coerceIn(1, 24 * 60),
+        )
+    }?.takeIf { it.apps.isNotEmpty() }

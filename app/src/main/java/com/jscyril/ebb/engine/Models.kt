@@ -16,7 +16,11 @@ data class AppRule(
     val domains: List<String>? = null,
     /** The app's name when it was added, so an uninstalled app still reads well (its limits stay). */
     val name: String? = null,
-)
+    /** Grey the screen for the last [GREY_LEAD_MS] of a session. */
+    val grayscale: Boolean = false,
+) {
+    companion object { const val GREY_LEAD_MS = 30_000L }
+}
 @Serializable
 data class AppState(
     val dayKey: Int = 0,

@@ -80,6 +80,7 @@ class BlockerService : AccessibilityService() {
     private var torn = false
     private var fgPkg: String? = null // effective foreground: the gated watched app, else the last package seen
     private var timer: Job? = null
+    private var grey: Job? = null
     private var imes: Set<String> = emptySet()
     private var sticky = false // full-screen Block/TimesUp survives the Home it triggers
     private var rescan: Job? = null
@@ -116,6 +117,7 @@ class BlockerService : AccessibilityService() {
 
     override fun onServiceConnected() {
         instance = this
+        Grayscale.set(this, false) // undo a grey left by a crash
         repo = Repo.get(this)
         clock = TrustedNow(this, repo, scope)
         overlay = OverlayHost(this, ::goHome)
@@ -500,13 +502,21 @@ class BlockerService : AccessibilityService() {
         if (tracker.pkg == pkg) s = SessionEngine.addForeground(s, ((now - tracker.start) / 1000).toInt(), now, zone)
         val ends = listOfNotNull(s.sessionEndsAt, s.emergencyUntil).filter { it > now }.maxOrNull()
         if (ends != null) SessionNotifier.show(this, pkg, label(pkg), ends, now)
+        // Grey for the session's last seconds (not an emergency's); cancelTimer() brings the colour back.
+        s.sessionEndsAt?.takeIf { rule.grayscale && it > now && s.emergencyUntil?.let { e -> e > now } != true }?.let { end ->
+            grey = scope.launch { delay((end - AppRule.GREY_LEAD_MS - now).coerceAtLeast(0)); Grayscale.set(this@BlockerService, true) }
+        }
         val at = SessionEngine.nextAlarmAt(rule, s, now, zone) ?: return
         // shortcut: Main delay pauses in deep sleep; fine because screen-off cancels it anyway
         // A cancelled timer may still run onTimer once (already queued in serial); benign, it recomputes.
         timer = scope.launch { delay((at - now).coerceAtLeast(0)); serial { onTimer() } }
     }
 
-    private fun cancelTimer() { timer?.cancel(); timer = null }
+    private fun cancelTimer() {
+        timer?.cancel(); timer = null
+        grey?.cancel(); grey = null
+        Grayscale.set(this, false)
+    }
 
     private suspend fun record(iv: ForegroundTracker.Interval?) {
         iv ?: return
@@ -569,6 +579,7 @@ class BlockerService : AccessibilityService() {
     private fun teardown() {
         if (torn) return
         torn = true
+        Grayscale.set(this, false)
         // Off while protection is on and no pause runs (switched off, or an update): SelfToggle turns it back on.
         if (SelfToggle.canWrite(this)) SelfToggle.schedule(this, 3_000)
         if (instance === this) instance = null

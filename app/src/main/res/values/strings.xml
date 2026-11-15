@@ -183,6 +183,9 @@
     <string name="pending_passes">Emergency passes: %1$d a month</string>
     <string name="pending_shared">Shared limit: %1$s a day</string>
     <string name="pending_shared_off">Shared limit off</string>
+    <string name="grey_title">Grey out the last 30 seconds</string>
+    <string name="grey_body">The screen turns grey near the end of a session, as a cue to wrap up.</string>
+    <string name="grey_needs_setup">Needs the one-time setup in Settings &gt; Payments.</string>
     <string name="shared_title">Share one daily limit</string>
     <string name="shared_body">All watched apps draw from one daily budget, so time doesn\'t just move to the next app. Each app\'s own limit still applies.</string>
     <string name="shared_label">Shared limit</string>

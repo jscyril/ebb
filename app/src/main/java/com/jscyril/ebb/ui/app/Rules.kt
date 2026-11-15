@@ -1,5 +1,6 @@
 package com.jscyril.ebb.ui.app
 
+import com.jscyril.ebb.service.SelfToggle
 import androidx.compose.material3.Switch
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.toggleable
@@ -173,6 +174,23 @@ fun RulesTab(contentPadding: PaddingValues, onMessage: (String) -> Unit, vm: Rul
     }
 }
 
+/** Per-app grey-out for a session's last 30 s; it needs the one-time adb grant, so it says so when that is missing. */
+@Composable
+private fun GrayscaleRow(on: Boolean, onChange: (Boolean) -> Unit) {
+    val ctx = LocalContext.current
+    val canWrite = remember { SelfToggle.canWrite(ctx) }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(on, enabled = canWrite || on, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.grey_title), style = MaterialTheme.typography.bodyLarge)
+            Body(stringResource(if (canWrite) R.string.grey_body else R.string.grey_needs_setup))
+        }
+        Switch(on, null, enabled = canWrite || on)
+    }
+}
+
 /** One daily budget for all watched apps. Turning it on or lowering it is tightening; off or higher waits 24 h. */
 @Composable
 private fun SharedLimitCard(current: Rules, hasPending: Boolean, pledge: Boolean, onSubmit: (Rules) -> Unit, modifier: Modifier = Modifier) {
@@ -229,6 +247,7 @@ private fun AppRuleCard(
                 Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     RuleEditor(draft.tiers, draft.dailyCapMin, { t, c -> draft = draft.copy(tiers = t, dailyCapMin = c) })
                     SitesEditor(Sites.of(draft), name) { draft = draft.copy(domains = it) }
+                    GrayscaleRow(draft.grayscale) { draft = draft.copy(grayscale = it) }
                     val proposed = current.copy(apps = current.apps + (rule.pkg to draft.copy(tiers = draft.tiers.sortedBy { it.sessionMin })))
                     val changed = draft != rule
                     val looser = changed && isLooser(current, proposed)

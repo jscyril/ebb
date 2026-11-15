@@ -258,6 +258,12 @@
     <string name="silence_explain">While an app is locked, Ebb snoozes its notifications until it unlocks, so they can\'t pull you back in. Nothing is lost: they come back when the lock ends.</string>
     <string name="silence_on">On: locked apps\' notifications are snoozed</string>
     <string name="silence_turn_on">Turn on</string>
+    <string name="share_week">Share this week</string>
+    <string name="share_week_title">Share your week</string>
+    <string name="share_week_heading">My week with Ebb</string>
+    <string name="share_week_total">%1$s a day on average · %2$d opens blocked</string>
+    <string name="share_week_top">Most used</string>
+    <string name="share_week_footer">Ebb · github.com/jscyril/ebb</string>
     <string name="set_backup">Backup</string>
     <string name="backup_body">Save your apps and limits to a file, or load them back (for example on a new phone). Loading a backup that loosens anything waits 24 hours, like any other change.</string>
     <string name="backup_export">Export rules</string>

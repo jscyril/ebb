@@ -1,5 +1,12 @@
 package com.jscyril.ebb.ui.app
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.rememberCoroutineScope
 import android.app.Application
 import android.text.format.DateFormat
 import androidx.compose.animation.core.animateFloatAsState
@@ -179,6 +186,19 @@ fun Dashboard(contentPadding: PaddingValues, vm: InsightsVm = viewModel()) {
             AppsCard(apps, isToday = selectedKey == today.dayKey, Modifier.animateItem())
         }
         item(key = "hours") { HoursCard(hourly, Modifier.animateItem()) }
+        item(key = "share") {
+            val ctx = LocalContext.current
+            val scope = rememberCoroutineScope()
+            val cs = MaterialTheme.colorScheme
+            OutlinedButton(
+                { scope.launch { shareWeek(ctx, ShareColors(cs.surface.toArgb(), cs.surfaceContainerHigh.toArgb(), cs.onSurface.toArgb(), cs.onSurfaceVariant.toArgb(), cs.primary.toArgb())) } },
+                Modifier.animateItem().fillMaxWidth().heightIn(min = 56.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_share), null)
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.share_week))
+            }
+        }
     }
 }
 

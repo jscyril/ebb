@@ -145,7 +145,14 @@ class SettingsVm(private val app: Application) : AndroidViewModel(app) {
     /** The file is untrusted: size-capped, parsed and clamped, then sent through the 24 h cooldown like any edit. */
     fun importRules(uri: Uri, onMessage: (String) -> Unit) = viewModelScope.launch {
         val text = withContext(Dispatchers.IO) {
-            runCatching { app.contentResolver.openInputStream(uri)!!.use { String(it.readNBytes(1 shl 20)) } }.getOrNull()
+            runCatching {
+                app.contentResolver.openInputStream(uri)!!.use { input ->
+                    val buf = ByteArray(1 shl 20) // a backup is a few KB; cap what an odd file can make us read
+                    var n = 0
+                    while (n < buf.size) { val r = input.read(buf, n, buf.size - n); if (r < 0) break; n += r }
+                    String(buf, 0, n)
+                }
+            }.getOrNull()
         }
         val r = text?.let { decodeRulesBackup(it) } ?: return@launch onMessage(app.getString(R.string.backup_invalid))
         onMessage(submitMessage(app, submitRules(app, r)))
